@@ -1,0 +1,649 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import dynamic from "next/dynamic"
+import {
+  ArrowRight,
+  DatabaseZap,
+  FileSearch,
+  ShieldAlert,
+  Sparkles,
+} from "lucide-react"
+
+import type { LucideIcon } from "lucide-react"
+
+import {
+  knowledgeDocuments,
+  knowledgeLinks,
+  knowledgeNodes,
+  nodeTypeMeta,
+} from "@/data/kg-mock"
+
+import { cn } from "@/lib/utils"
+
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+
+const panelClassName =
+  "rounded-[28px] border border-white/8 bg-[#0b1120]/92 shadow-[0_22px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+
+const ForceGraph = dynamic(
+  () => import("./force-graph").then((module) => module.ForceGraph),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full min-h-[600px] items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-black/20 text-sm text-slate-400">
+        正在加载图谱画布...
+      </div>
+    ),
+  }
+)
+
+export function KnowledgeWorkbench() {
+  const [activeDocumentId, setActiveDocumentId] = useState(
+    knowledgeDocuments[0].id
+  )
+  const [selectedNodeId, setSelectedNodeId] = useState(knowledgeNodes[0].id)
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
+
+  const activeDocument = useMemo(
+    () =>
+      knowledgeDocuments.find((document) => document.id === activeDocumentId) ??
+      knowledgeDocuments[0],
+    [activeDocumentId]
+  )
+
+  const selectedNode = useMemo(
+    () =>
+      knowledgeNodes.find((node) => node.id === selectedNodeId) ??
+      knowledgeNodes[0],
+    [selectedNodeId]
+  )
+
+  const selectedLink = useMemo(
+    () =>
+      selectedLinkId
+        ? (knowledgeLinks.find((link) => link.id === selectedLinkId) ?? null)
+        : null,
+    [selectedLinkId]
+  )
+
+  const nodeDistribution = useMemo(
+    () =>
+      Object.entries(
+        knowledgeNodes.reduce<Record<string, number>>((accumulator, node) => {
+          accumulator[node.type] = (accumulator[node.type] ?? 0) + 1
+          return accumulator
+        }, {})
+      ),
+    []
+  )
+
+  const highlightedRelations = useMemo(() => knowledgeLinks.slice(0, 4), [])
+
+  return (
+    <section className="relative overflow-hidden bg-[#050816] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(124,58,237,0.18),transparent_24%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.1),transparent_30%)]" />
+      <div className="container relative px-4 py-6 lg:px-6 lg:py-8">
+        <div className="mb-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Badge className="rounded-full border-0 bg-cyan-400/14 px-3 py-1 text-cyan-300 hover:bg-cyan-400/14">
+              知识图谱工作台
+            </Badge>
+            <Badge
+              variant="outline"
+              className="rounded-full border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300"
+            >
+              原始文本 / 实体信息 / 子图联动
+            </Badge>
+          </div>
+          <h1 className="text-3xl font-semibold tracking-tight text-white">
+            轨道病害图谱工作台
+          </h1>
+          <p className="max-w-3xl text-sm leading-7 text-slate-400">
+            主页只保留概览卡片，这里聚焦实际研判工作。源文档、文档内容、图谱子图和结构化详情全部在同一页面联动查看。
+          </p>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-12">
+          <Card
+            className={cn(
+              panelClassName,
+              "flex h-[520px] flex-col xl:col-span-4"
+            )}
+          >
+            <CardHeader className="border-b border-white/8 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg text-white">源文档</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    保留可点击的文档列表。
+                  </CardDescription>
+                </div>
+                <FileSearch className="h-5 w-5 text-cyan-300" />
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 p-3">
+              <ScrollArea className="h-full pr-1">
+                <div className="space-y-2">
+                  {knowledgeDocuments.map((document) => {
+                    const isActive = document.id === activeDocument.id
+
+                    return (
+                      <button
+                        key={document.id}
+                        className={cn(
+                          "w-full rounded-2xl border px-4 py-3 text-left transition-all",
+                          isActive
+                            ? "border-cyan-400/30 bg-cyan-400/10 shadow-[0_14px_30px_rgba(34,211,238,0.08)]"
+                            : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
+                        )}
+                        onClick={() => setActiveDocumentId(document.id)}
+                        type="button"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="font-medium text-white">
+                              {document.title}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {document.source} / {document.updatedAt}
+                            </div>
+                          </div>
+                          <div className="rounded-full bg-white/10 px-2 py-1 text-xs font-medium text-slate-200">
+                            {(document.confidence * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={cn(
+              panelClassName,
+              "flex h-[520px] flex-col xl:col-span-8"
+            )}
+          >
+            <CardHeader className="border-b border-white/8 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg text-white">文档内容</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    当前选中文档的摘要、标签与原始文本查阅区。
+                  </CardDescription>
+                </div>
+                <Sparkles className="h-5 w-5 text-cyan-300" />
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 p-4">
+              <ScrollArea className="h-full pr-1">
+                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {activeDocument.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="rounded-full border-white/10 bg-white/[0.04] text-slate-300"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">
+                    {activeDocument.location}
+                  </div>
+                  <div className="mt-3 text-base font-medium text-white">
+                    {activeDocument.summary}
+                  </div>
+                  <div className="mt-4 rounded-[20px] border border-white/8 bg-[#030712]/70 px-4 py-3">
+                    <div className="space-y-4 text-sm leading-7 text-slate-300">
+                      {activeDocument.text.split("\n\n").map((paragraph) => (
+                        <p key={paragraph.slice(0, 24)}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={cn(
+              panelClassName,
+              "flex h-[720px] flex-col xl:col-span-12"
+            )}
+          >
+            <CardHeader className="border-b border-white/8 pb-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-2">
+                  <div className="text-sm text-slate-400">D3 力导向子图</div>
+                  <CardTitle className="text-2xl text-white">
+                    轨道病害关联子图
+                  </CardTitle>
+                  <CardDescription className="max-w-2xl text-slate-400">
+                    图谱区域单独占满一整行，作为工作台的视觉中心。支持悬停提示、点击详情、拖拽节点，以及右下角的放大缩小控制。
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.values(nodeTypeMeta).map((meta) => (
+                    <span
+                      key={meta.label}
+                      className="rounded-full border border-white/8 px-3 py-1 text-xs font-medium text-slate-300"
+                      style={{ backgroundColor: meta.tint }}
+                    >
+                      {meta.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="relative flex-1 p-0">
+              <div className="pointer-events-none absolute inset-x-5 top-5 z-10 flex flex-wrap gap-2">
+                <FloatingBadge label="当前文档" value={activeDocument.title} />
+                <FloatingBadge
+                  label="当前选择"
+                  value={selectedLink ? "关系详情" : selectedNode.label}
+                />
+                <FloatingBadge label="交互模式" value="拖拽 / 缩放 / 点击" />
+              </div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.46),rgba(2,6,23,0.82))]" />
+              <div className="absolute inset-0 px-3 pb-3 pt-14 sm:px-4">
+                <ForceGraph
+                  selectedLinkId={selectedLinkId}
+                  selectedNodeId={selectedNodeId}
+                  onSelectLink={setSelectedLinkId}
+                  onSelectNode={(nodeId) => {
+                    setSelectedNodeId(nodeId)
+                    setSelectedLinkId(null)
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={cn(
+              panelClassName,
+              "flex h-[420px] flex-col xl:col-span-3"
+            )}
+          >
+            <CardHeader className="border-b border-white/8 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg text-white">实体浏览</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    结构化实体列表，点击后联动右侧详情。
+                  </CardDescription>
+                </div>
+                <DatabaseZap className="h-5 w-5 text-violet-300" />
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 p-3">
+              <ScrollArea className="h-full pr-1">
+                <div className="space-y-2">
+                  {knowledgeNodes.map((node) => {
+                    const meta = nodeTypeMeta[node.type]
+                    const isSelected = node.id === selectedNode.id
+
+                    return (
+                      <button
+                        key={node.id}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-left transition-all",
+                          isSelected
+                            ? "border-cyan-400/26 bg-cyan-400/10"
+                            : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
+                        )}
+                        onClick={() => {
+                          setSelectedNodeId(node.id)
+                          setSelectedLinkId(null)
+                        }}
+                        type="button"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: meta.color }}
+                          />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-white">
+                              {node.label}
+                            </div>
+                            <div className="truncate text-xs text-slate-400">
+                              {meta.label} / 提及 {node.mentions} 次
+                            </div>
+                          </div>
+                        </div>
+                        <span className="ml-3 text-xs font-medium text-slate-300">
+                          {(node.confidence * 100).toFixed(0)}%
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={cn(
+              panelClassName,
+              "flex h-[420px] flex-col xl:col-span-5"
+            )}
+          >
+            <CardHeader className="border-b border-white/8 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg text-white">
+                    {selectedLink ? "关系详情" : "实体详情"}
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    {selectedLink
+                      ? "显示当前关系的证据和置信度。"
+                      : "显示当前节点的摘要、属性和关联证据。"}
+                  </CardDescription>
+                </div>
+                <ShieldAlert className="h-5 w-5 text-amber-300" />
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 p-4">
+              <ScrollArea className="h-full pr-1">
+                {selectedLink ? (
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px]">
+                    <div className="rounded-[24px] border border-amber-300/12 bg-amber-300/8 p-5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="rounded-full border-0 bg-amber-300/18 text-amber-200 hover:bg-amber-300/18">
+                          当前选中关系边
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-white/10 bg-white/[0.04] text-slate-200"
+                        >
+                          {(selectedLink.confidence * 100).toFixed(0)}% 置信度
+                        </Badge>
+                      </div>
+                      <div className="mt-4 text-2xl font-semibold text-white">
+                        {labelForNode(selectedLink.source)}{" "}
+                        {selectedLink.relation}{" "}
+                        {labelForNode(selectedLink.target)}
+                      </div>
+                      <p className="mt-4 text-sm leading-7 text-slate-300">
+                        {selectedLink.evidence}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col justify-between rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                      <div className="space-y-4">
+                        <DetailMetric
+                          label="源节点"
+                          value={labelForNode(selectedLink.source)}
+                        />
+                        <DetailMetric
+                          label="目标节点"
+                          value={labelForNode(selectedLink.target)}
+                        />
+                        <DetailMetric
+                          label="关系类型"
+                          value={selectedLink.relation}
+                        />
+                      </div>
+                      <button
+                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+                        onClick={() => {
+                          setSelectedNodeId(selectedLink.source)
+                          setSelectedLinkId(null)
+                        }}
+                        type="button"
+                      >
+                        跳到源节点
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className="space-y-4">
+                      <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className="rounded-full px-3 py-1 text-xs font-semibold"
+                            style={{
+                              backgroundColor:
+                                nodeTypeMeta[selectedNode.type].tint,
+                              color: nodeTypeMeta[selectedNode.type].color,
+                            }}
+                          >
+                            {nodeTypeMeta[selectedNode.type].label}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-white/10 bg-white/[0.04] text-slate-200"
+                          >
+                            {(selectedNode.confidence * 100).toFixed(0)}% 置信度
+                          </Badge>
+                        </div>
+                        <div className="mt-4 text-2xl font-semibold text-white">
+                          {selectedNode.label}
+                        </div>
+                        <p className="mt-3 text-sm leading-7 text-slate-300">
+                          {selectedNode.summary}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {selectedNode.properties.map((property) => (
+                          <div
+                            key={property.label}
+                            className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
+                          >
+                            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                              {property.label}
+                            </div>
+                            <div className="mt-2 text-sm font-medium text-slate-200">
+                              {property.value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                        关联证据
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {knowledgeLinks
+                          .filter(
+                            (link) =>
+                              link.source === selectedNode.id ||
+                              link.target === selectedNode.id
+                          )
+                          .slice(0, 3)
+                          .map((link) => (
+                            <button
+                              key={link.id}
+                              className="w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
+                              onClick={() => setSelectedLinkId(link.id)}
+                              type="button"
+                            >
+                              <div className="text-sm font-medium text-white">
+                                {link.relation}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-400">
+                                {(link.confidence * 100).toFixed(0)}% 置信度
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={cn(
+              panelClassName,
+              "flex h-[420px] flex-col xl:col-span-4"
+            )}
+          >
+            <CardHeader className="border-b border-white/8 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg text-white">图谱快照</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    实体分布、视觉风格说明和证据链入口。
+                  </CardDescription>
+                </div>
+                <Sparkles className="h-5 w-5 text-cyan-300" />
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 p-4">
+              <ScrollArea className="h-full pr-1">
+                <div className="space-y-4">
+                  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                      实体类型占比
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {nodeDistribution.map(([type, count]) => {
+                        const meta =
+                          nodeTypeMeta[type as keyof typeof nodeTypeMeta]
+                        const percentage = Math.round(
+                          (count / knowledgeNodes.length) * 100
+                        )
+
+                        return (
+                          <ProgressRow
+                            key={type}
+                            color={meta.color}
+                            label={meta.label}
+                            percentage={percentage}
+                            value={`${count}`}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                        视觉方向
+                      </div>
+                      <div className="mt-3 space-y-3 text-sm text-slate-300">
+                        <InfoLine icon={Sparkles} text="深色高对比主背景" />
+                        <InfoLine
+                          icon={DatabaseZap}
+                          text="Bento 网格严格对齐"
+                        />
+                        <InfoLine icon={FileSearch} text="圆角图卡和柔和辉光" />
+                      </div>
+                    </div>
+                    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                        证据链
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {highlightedRelations.map((link) => (
+                          <button
+                            key={link.id}
+                            className="block w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
+                            onClick={() => setSelectedLinkId(link.id)}
+                            type="button"
+                          >
+                            <div className="text-sm font-medium text-white">
+                              {link.relation}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-400">
+                              {labelForNode(link.source)} {"->"}{" "}
+                              {labelForNode(link.target)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function labelForNode(nodeId: string) {
+  return knowledgeNodes.find((node) => node.id === nodeId)?.label ?? nodeId
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-2 text-sm font-medium text-slate-200">{value}</div>
+    </div>
+  )
+}
+
+function ProgressRow({
+  color,
+  label,
+  percentage,
+  value,
+}: {
+  color: string
+  label: string
+  percentage: number
+  value: string
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-slate-300">{label}</span>
+        <span className="text-slate-500">{value}</span>
+      </div>
+      <div className="h-2 rounded-full bg-white/[0.06]">
+        <div
+          className="h-2 rounded-full"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function InfoLine({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="rounded-xl bg-white/[0.06] p-2">
+        <Icon className="h-4 w-4 text-cyan-300" />
+      </div>
+      <span>{text}</span>
+    </div>
+  )
+}
+
+function FloatingBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-full border border-white/10 bg-black/35 px-3 py-2 text-xs backdrop-blur">
+      <span className="text-slate-500">{label}</span>
+      <span className="ml-2 font-medium text-slate-200">{value}</span>
+    </div>
+  )
+}
