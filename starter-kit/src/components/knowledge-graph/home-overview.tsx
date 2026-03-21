@@ -1,15 +1,18 @@
 "use client"
 
+import Link from "next/link"
 import {
-  Activity,
   AlertTriangle,
-  DatabaseZap,
-  FileSearch,
+  CircleAlert,
+  Database,
+  FileText,
+  Gauge,
   Network,
-  Orbit,
+  TriangleAlert,
+  Zap,
 } from "lucide-react"
 
-import type { LucideIcon } from "lucide-react"
+import type { ReactNode } from "react"
 
 import {
   knowledgeDocuments,
@@ -17,237 +20,320 @@ import {
   knowledgeNodes,
 } from "@/data/kg-mock"
 
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+const overviewMetrics = [
+  {
+    label: "已扫描文档",
+    value: `${knowledgeDocuments.length}`,
+    unit: "份",
+    hint: "+12.5% 本周",
+    icon: FileText,
+    color: "text-cyan-300",
+    bars: [24, 34, 32, 48, 66],
+  },
+  {
+    label: "识别实体数量",
+    value: `${knowledgeNodes.length}`,
+    unit: "个",
+    hint: "+4 新增",
+    icon: Network,
+    color: "text-fuchsia-300",
+    bars: [42, 24, 38, 52, 46],
+  },
+  {
+    label: "活跃知识关联",
+    value: `${knowledgeLinks.length}`,
+    unit: "条",
+    hint: "-0.4% 处理延迟",
+    icon: Database,
+    color: "text-emerald-300",
+    bars: [28, 50, 34, 46, 62],
+  },
+] as const
 
-const panelClassName =
-  "rounded-[28px] border border-white/8 bg-[#0b1120]/92 shadow-[0_22px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+const threatItems = [
+  {
+    title: "结构性裂缝",
+    location: "K124+450 桥墩支撑",
+    level: "危急 (CRITICAL)",
+    tone: "border-red-400/40 bg-[linear-gradient(90deg,rgba(239,68,68,0.16),rgba(239,68,68,0.05))] text-red-300",
+    badge: "bg-red-300/90 text-black",
+    icon: CircleAlert,
+  },
+  {
+    title: "几何位移偏差",
+    location: "L2 线曲线段 R350",
+    level: "中高 (HIGH)",
+    tone: "border-amber-400/40 bg-[linear-gradient(90deg,rgba(245,158,11,0.16),rgba(245,158,11,0.05))] text-amber-300",
+    badge: "bg-amber-300/90 text-black",
+    icon: TriangleAlert,
+  },
+  {
+    title: "电气接触磨损",
+    location: "接触网 043# 支柱",
+    level: "常规 (NORMAL)",
+    tone: "border-cyan-400/40 bg-[linear-gradient(90deg,rgba(34,211,238,0.16),rgba(34,211,238,0.05))] text-cyan-300",
+    badge: "bg-cyan-300/85 text-slate-950",
+    icon: Zap,
+  },
+] as const
 
-const metricTrendData = {
-  corpus: [8, 12, 11, 16, 18, 20, 22],
-  nodes: [6, 7, 8, 8, 9, 9, 9],
-  links: [3, 4, 5, 6, 7, 8, 8],
-  risk: [4, 6, 7, 9, 8, 7, 6],
-}
+const diseaseDistribution = [
+  { label: "轨道扣件缺失", value: 65, color: "bg-cyan-300" },
+  { label: "道床板结硬化", value: 42, color: "bg-fuchsia-300" },
+  { label: "钢轨疲磨异常", value: 28, color: "bg-emerald-300" },
+] as const
+
+const healthScore = 94
 
 export function HomeOverview() {
   return (
-    <section className="relative overflow-hidden bg-[#050816] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(124,58,237,0.18),transparent_24%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.1),transparent_30%)]" />
-      <div className="container relative px-4 py-6 lg:px-6 lg:py-8">
-        <div className="grid gap-4 xl:grid-cols-12">
-          <Card className={cn(panelClassName, "xl:col-span-7")}>
-            <CardContent className="relative overflow-hidden p-0">
-              <div className="absolute inset-y-0 right-0 w-2/5 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.14),transparent_56%)]" />
-              <div className="relative flex h-full flex-col gap-8 px-6 py-6 lg:px-8 lg:py-7">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="rounded-full border-0 bg-cyan-400/14 px-3 py-1 text-cyan-300 hover:bg-cyan-400/14">
-                    KG知识图谱平台
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="rounded-full border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-300"
-                  >
-                    主页总览
-                  </Badge>
-                </div>
+    <section className="relative min-h-full overflow-hidden bg-[#020508] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.10),transparent_26%),radial-gradient(circle_at_70%_10%,rgba(168,85,247,0.08),transparent_20%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:56px_56px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_center,rgba(0,209,255,0.08),transparent_56%)]" />
 
-                <div className="space-y-4">
-                  <div className="max-w-4xl text-3xl font-semibold tracking-tight text-white lg:text-4xl">
-                    轨道病害知识图谱大屏，图谱为视觉中心，原始文本与结构化信息分区对齐展示。
+      <div className="container relative space-y-10 px-4 py-8 lg:px-6 lg:py-10">
+        <section className="relative overflow-hidden rounded-[32px] border border-white/6 bg-black/30 px-6 py-10 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-sm lg:px-10 lg:py-14">
+          <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
+            <div className="text-[11px] uppercase tracking-[0.3em] text-cyan-300/85">
+              Railway Intelligence
+            </div>
+
+            <div className="mt-6 leading-none">
+              <div className="text-5xl font-black tracking-tight lg:text-7xl">
+                <span className="bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent">
+                  KG知识图谱
+                </span>
+                <span className="ml-3 text-white">平台</span>
+              </div>
+            </div>
+
+            <p className="mt-8 max-w-3xl text-base leading-8 text-slate-300 lg:text-lg">
+              基于拓扑关系的病害关联分析，实现轨道缺陷的精准定位与全生命周期管理。系统深度整合结构化检测数据、传感器读数及历史维修记录，为轨道病害识别、预警与闭环治理提供统一入口。
+            </p>
+          </div>
+
+          <div className="mt-10 flex justify-center">
+            <Link
+              href="/workbench"
+              className="inline-flex items-center justify-center rounded-[18px] bg-gradient-to-r from-cyan-300 to-sky-400 px-10 py-4 text-lg font-bold text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.28)] transition hover:shadow-[0_0_50px_rgba(34,211,238,0.42)]"
+            >
+              进入系统
+            </Link>
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-20 bottom-0 h-24 bg-[radial-gradient(circle_at_center,rgba(163,230,53,0.08),transparent_62%)]" />
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Gauge className="h-5 w-5 text-white" />
+            <h2 className="text-2xl font-bold text-white">关键数据指标</h2>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-3">
+            {overviewMetrics.map((metric) => {
+              const Icon = metric.icon
+
+              return (
+                <Card
+                  key={metric.label}
+                  className="rounded-[26px] border-white/8 bg-[#0c1117] text-white shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
+                >
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-base text-slate-400">
+                          {metric.label}
+                        </div>
+                        <div className="mt-4 text-4xl font-black tracking-tight lg:text-5xl">
+                          {metric.value}
+                          <span className="ml-2 text-lg font-semibold text-slate-300">
+                            {metric.unit}
+                          </span>
+                        </div>
+                        <div
+                          className={`mt-3 text-base font-semibold ${metric.color}`}
+                        >
+                          {metric.hint}
+                        </div>
+                      </div>
+                      <Icon className={`h-7 w-7 ${metric.color}`} />
+                    </div>
+
+                    <div className="flex items-end justify-end gap-2">
+                      {metric.bars.map((bar, index) => (
+                        <div
+                          key={`${metric.label}-${index}`}
+                          className={`w-5 rounded-md ${metric.color.replace("text-", "bg-")} shadow-[0_0_18px_rgba(255,255,255,0.08)]`}
+                          style={{ height: `${bar}px` }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
+
+        <Card className="rounded-[28px] border-white/8 bg-[#0c1117] text-white shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3 text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              <CardTitle className="text-2xl font-bold">潜在威胁监控</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-3">
+            {threatItems.map((item) => {
+              const Icon = item.icon
+
+              return (
+                <div
+                  key={item.title}
+                  className={`rounded-[18px] border-l-4 px-4 py-4 ${item.tone}`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold">{item.title}</div>
+                        <div className="mt-1 text-sm text-slate-300">
+                          {item.location}
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold ${item.badge}`}
+                    >
+                      {item.level}
+                    </span>
                   </div>
-                  <p className="max-w-3xl text-sm leading-7 text-slate-300 lg:text-base">
-                    当前页面采用深色 SaaS
-                    仪表盘风格，强调高对比、统一圆角、清晰留白和严格网格。原始文档、实体浏览、图谱详情和统计快照都保持在固定卡片中。
-                  </p>
                 </div>
+              )
+            })}
+          </CardContent>
+        </Card>
 
-                <div className="grid gap-3 md:grid-cols-3">
-                  <HeroInfoBlock
-                    icon={FileSearch}
-                    title="非结构化文本"
-                    value={`${knowledgeDocuments.length} 份文档`}
-                    description="巡检记录、复核纪要和环境说明持续作为图谱证据源保留。"
-                  />
-                  <HeroInfoBlock
-                    icon={DatabaseZap}
-                    title="结构化图谱"
-                    value={`${knowledgeNodes.length} 节点 / ${knowledgeLinks.length} 关系`}
-                    description="实体、关系和属性已拆成 mock schema，后端接口确定后可直接替换。"
-                  />
-                  <HeroInfoBlock
-                    icon={Orbit}
-                    title="交互方式"
-                    value="悬停 / 点击 / 拖拽"
-                    description="节点和关系详情都在当前页完成查看，不再跳转到外层页面。"
-                  />
-                </div>
+        <div className="grid gap-6 xl:grid-cols-12">
+          <Card className="rounded-[28px] border-white/8 bg-[#0c1117] text-white shadow-[0_18px_60px_rgba(0,0,0,0.28)] xl:col-span-7">
+            <CardContent className="space-y-6 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">近期病害分布</h3>
+                <button
+                  className="text-sm font-medium text-cyan-300 transition hover:text-cyan-200"
+                  type="button"
+                >
+                  查看全部
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {diseaseDistribution.map((item) => (
+                  <div
+                    key={item.label}
+                    className="grid grid-cols-[160px_minmax(0,1fr)_56px] items-center gap-4"
+                  >
+                    <div className="text-base text-slate-300">{item.label}</div>
+                    <div className="h-3 overflow-hidden rounded-full bg-white/8">
+                      <div
+                        className={`h-full rounded-full ${item.color}`}
+                        style={{ width: `${item.value}%` }}
+                      />
+                    </div>
+                    <div className="text-right text-base font-medium text-slate-200">
+                      {item.value}%
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:col-span-5">
-            <MetricTile
-              icon={Activity}
-              label="源文档数量"
-              value={`${knowledgeDocuments.length}`}
-              delta="+12%"
-              tone="cyan"
-              trend={metricTrendData.corpus}
-            />
-            <MetricTile
-              icon={Network}
-              label="实体节点"
-              value={`${knowledgeNodes.length}`}
-              delta="+04"
-              tone="violet"
-              trend={metricTrendData.nodes}
-            />
-            <MetricTile
-              icon={DatabaseZap}
-              label="关系边"
-              value={`${knowledgeLinks.length}`}
-              delta="+03"
-              tone="emerald"
-              trend={metricTrendData.links}
-            />
-            <MetricTile
-              icon={AlertTriangle}
-              label="风险信号"
-              value={`${knowledgeNodes.filter((node) => node.type === "risk").length}`}
-              delta="-02"
-              tone="amber"
-              trend={metricTrendData.risk}
-            />
-          </div>
+          <Card className="rounded-[28px] border-white/8 bg-[#0c1117] text-white shadow-[0_18px_60px_rgba(0,0,0,0.28)] xl:col-span-5">
+            <CardContent className="flex h-full flex-col justify-between gap-6 p-6 lg:flex-row lg:items-center">
+              <HealthGauge score={healthScore} />
+
+              <div className="space-y-4">
+                <h3 className="text-2xl font-bold">系统健康指数</h3>
+                <p className="max-w-md text-base leading-8 text-slate-300">
+                  当前知识图谱解析引擎运行平稳，图谱稠密度维持在 0.85
+                  以上，推理一致性检查通过。
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <StatusPill className="bg-emerald-400/15 text-emerald-300">
+                    SAFE
+                  </StatusPill>
+                  <StatusPill className="bg-cyan-400/15 text-cyan-300">
+                    OPTIMIZED
+                  </StatusPill>
+                  <StatusPill className="bg-fuchsia-400/15 text-fuchsia-300">
+                    STABLE
+                  </StatusPill>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </section>
   )
 }
 
-function HeroInfoBlock({
-  icon: Icon,
-  title,
-  value,
-  description,
-}: {
-  icon: LucideIcon
-  title: string
-  value: string
-  description: string
-}) {
+function HealthGauge({ score }: { score: number }) {
+  const size = 150
+  const radius = 56
+  const circumference = 2 * Math.PI * radius
+  const dash = (score / 100) * circumference
+  const gap = circumference - dash
+
   return (
-    <div className="rounded-[24px] border border-white/8 bg-white/[0.04] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="rounded-2xl bg-white/[0.06] p-2">
-          <Icon className="h-4 w-4 text-cyan-300" />
-        </div>
-        <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-          {title}
-        </div>
+    <div className="relative h-[150px] w-[150px] shrink-0">
+      <svg
+        aria-hidden="true"
+        className="h-full w-full -rotate-90"
+        viewBox={`0 0 ${size} ${size}`}
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(34,211,238,0.14)"
+          strokeWidth="10"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#5bd5ff"
+          strokeDasharray={`${dash} ${gap}`}
+          strokeLinecap="round"
+          strokeWidth="10"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-4xl font-black text-white">
+        {score}%
       </div>
-      <div className="mt-4 text-lg font-semibold text-white">{value}</div>
-      <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
     </div>
   )
 }
 
-function MetricTile({
-  icon: Icon,
-  label,
-  value,
-  delta,
-  tone,
-  trend,
+function StatusPill({
+  children,
+  className,
 }: {
-  icon: LucideIcon
-  label: string
-  value: string
-  delta: string
-  tone: "cyan" | "violet" | "emerald" | "amber"
-  trend: number[]
+  children: ReactNode
+  className: string
 }) {
-  const toneMap = {
-    cyan: {
-      glow: "bg-cyan-400/14 text-cyan-300",
-      line: "#22d3ee",
-      chip: "bg-cyan-400/12 text-cyan-300",
-    },
-    violet: {
-      glow: "bg-violet-400/14 text-violet-300",
-      line: "#8b5cf6",
-      chip: "bg-violet-400/12 text-violet-300",
-    },
-    emerald: {
-      glow: "bg-emerald-400/14 text-emerald-300",
-      line: "#10b981",
-      chip: "bg-emerald-400/12 text-emerald-300",
-    },
-    amber: {
-      glow: "bg-amber-400/14 text-amber-300",
-      line: "#f59e0b",
-      chip: "bg-amber-400/12 text-amber-300",
-    },
-  }[tone]
-
   return (
-    <Card className={cn(panelClassName, "h-full")}>
-      <CardContent className="flex h-full flex-col justify-between gap-4 p-5">
-        <div className="flex items-start justify-between">
-          <div className={cn("rounded-2xl p-2", toneMap.glow)}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <span
-            className={cn(
-              "rounded-full px-2 py-1 text-xs font-medium",
-              toneMap.chip
-            )}
-          >
-            {delta}
-          </span>
-        </div>
-        <div>
-          <div className="text-sm text-slate-400">{label}</div>
-          <div className="mt-1 text-3xl font-semibold text-white">{value}</div>
-        </div>
-        <Sparkline values={trend} stroke={toneMap.line} />
-      </CardContent>
-    </Card>
-  )
-}
-
-function Sparkline({ values, stroke }: { values: number[]; stroke: string }) {
-  const width = 120
-  const height = 36
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
-
-  const points = values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * width
-      const y = height - ((value - min) / range) * (height - 6) - 3
-      return `${x},${y}`
-    })
-    .join(" ")
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-9 w-full"
-      viewBox={`0 0 ${width} ${height}`}
-    >
-      <polyline
-        fill="none"
-        points={points}
-        stroke={stroke}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="3"
-      />
-    </svg>
+    <span className={`rounded-xl px-3 py-2 text-sm font-bold ${className}`}>
+      {children}
+    </span>
   )
 }
