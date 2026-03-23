@@ -32,6 +32,11 @@ import {
 } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
+const PdfViewer = dynamic(
+  () => import("@/components/knowledge-graph/pdf-viewer"),
+  { ssr: false }
+)
+
 const panelClassName =
   "rounded-[28px] border border-white/8 bg-[#0b1120]/92 shadow-[0_22px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl"
 
@@ -273,9 +278,11 @@ export function KnowledgeWorkbench() {
                               {document.source} / {document.updatedAt}
                             </div>
                           </div>
-                          <div className="rounded-full bg-white/10 px-2 py-1 text-xs font-medium text-slate-200">
-                            {(document.confidence * 100).toFixed(0)}%
-                          </div>
+                          {document.confidence != null && (
+                            <div className="rounded-full bg-white/10 px-2 py-1 text-xs font-medium text-slate-200">
+                              {(document.confidence * 100).toFixed(0)}%
+                            </div>
+                          )}
                         </div>
                       </button>
                     )
@@ -292,38 +299,34 @@ export function KnowledgeWorkbench() {
               "flex h-[520px] flex-col xl:col-span-8"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-4">
+            <CardHeader className="border-b border-white/8 pb-3">
               <div className="flex items-start justify-between gap-4">
-                <div>
+                <div className="min-w-0 flex-1">
                   <CardTitle className="text-lg text-white">文档内容</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    当前选中文档的摘要、标签与原始文本查阅区。
+                  <CardDescription className="mt-0.5 text-slate-400">
+                    {activeDocument.summary}
                   </CardDescription>
-                </div>
-                <Sparkles className="h-5 w-5 text-cyan-300" />
-              </div>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1 p-4">
-              <ScrollArea className="h-full pr-1">
-                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {activeDocument.tags.map((tag) => (
                       <Badge
                         key={tag}
                         variant="outline"
-                        className="rounded-full border-white/10 bg-white/[0.04] text-slate-300"
+                        className="rounded-full border-white/10 bg-white/[0.04] text-[11px] text-slate-400"
                       >
                         {tag}
                       </Badge>
                     ))}
                   </div>
-                  <div className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">
-                    {activeDocument.location}
-                  </div>
-                  <div className="mt-3 text-base font-medium text-white">
-                    {activeDocument.summary}
-                  </div>
-                  <div className="mt-4 rounded-[20px] border border-white/8 bg-[#030712]/70 px-4 py-3">
+                </div>
+                <Sparkles className="h-5 w-5 shrink-0 text-cyan-300" />
+              </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 p-0">
+              {activeDocument.pdfUrl ? (
+                <PdfViewer url={activeDocument.pdfUrl} />
+              ) : (
+                <ScrollArea className="h-full p-4">
+                  <div className="rounded-[20px] border border-white/8 bg-[#030712]/70 px-4 py-3">
                     <div className="space-y-4 text-sm leading-7 text-slate-300">
                       {activeDocument.text.split("\n\n").map((paragraph) => (
                         <p key={paragraph.slice(0, 24)}>
@@ -345,8 +348,8 @@ export function KnowledgeWorkbench() {
                       ))}
                     </div>
                   </div>
-                </div>
-              </ScrollArea>
+                </ScrollArea>
+              )}
             </CardContent>
           </Card>
 
@@ -880,7 +883,7 @@ const entityPattern = (() => {
     .map((n) => n.label)
     .filter((l) => l.length >= 2)
     .sort((a, b) => b.length - a.length)
-    .slice(0, 200)
+    .slice(0, 500)
   if (labels.length === 0) return null
   return new RegExp(
     `(${labels.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
