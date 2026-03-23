@@ -53,6 +53,7 @@ export function KnowledgeWorkbench() {
   )
   const [selectedNodeId, setSelectedNodeId] = useState(knowledgeNodes[0].id)
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null)
   const [graphSearch, setGraphSearch] = useState("")
   const [graphSearchOpen, setGraphSearchOpen] = useState(false)
   const graphSearchRef = useRef<HTMLInputElement>(null)
@@ -230,7 +231,19 @@ export function KnowledgeWorkbench() {
                   <div className="mt-4 rounded-[20px] border border-white/8 bg-[#030712]/70 px-4 py-3">
                     <div className="space-y-4 text-sm leading-7 text-slate-300">
                       {activeDocument.text.split("\n\n").map((paragraph) => (
-                        <p key={paragraph.slice(0, 24)}>{paragraph}</p>
+                        <p key={paragraph.slice(0, 24)}>
+                          <HighlightedText
+                            text={paragraph}
+                            onClickEntity={(nodeId) => {
+                              setSelectedNodeId(nodeId)
+                              setSelectedLinkId(null)
+                              setFocusNodeId(null)
+                              requestAnimationFrame(() =>
+                                setFocusNodeId(nodeId)
+                              )
+                            }}
+                          />
+                        </p>
                       ))}
                     </div>
                   </div>
@@ -367,6 +380,7 @@ export function KnowledgeWorkbench() {
                 <ForceGraph
                   selectedLinkId={selectedLinkId}
                   selectedNodeId={selectedNodeId}
+                  focusNodeId={focusNodeId}
                   onSelectLink={setSelectedLinkId}
                   onSelectNode={handleSelectNode}
                 />
@@ -747,5 +761,51 @@ function FloatingBadge({ label, value }: { label: string; value: string }) {
       <span className="text-slate-500">{label}</span>
       <span className="ml-2 font-medium text-slate-200">{value}</span>
     </div>
+  )
+}
+
+const entityPattern = (() => {
+  const labels = knowledgeNodes
+    .map((node) => node.label)
+    .sort((a, b) => b.length - a.length)
+  return new RegExp(`(${labels.map(escapeRegex).join("|")})`, "g")
+})()
+
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function HighlightedText({
+  text,
+  onClickEntity,
+}: {
+  text: string
+  onClickEntity: (nodeId: string) => void
+}) {
+  const parts = text.split(entityPattern)
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        const node = knowledgeNodes.find((n) => n.label === part)
+        if (!node) return <span key={index}>{part}</span>
+
+        const meta = nodeTypeMeta[node.type]
+        return (
+          <button
+            key={index}
+            type="button"
+            className="cursor-pointer rounded px-0.5 font-medium transition-colors hover:brightness-125"
+            style={{
+              color: meta.color,
+              backgroundColor: meta.tint,
+            }}
+            onClick={() => onClickEntity(node.id)}
+          >
+            {part}
+          </button>
+        )
+      })}
+    </>
   )
 }

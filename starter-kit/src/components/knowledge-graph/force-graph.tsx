@@ -27,6 +27,7 @@ interface ForceGraphProps {
   links?: KnowledgeLink[]
   selectedNodeId: string | null
   selectedLinkId: string | null
+  focusNodeId?: string | null
   onSelectNode: (nodeId: string) => void
   onSelectLink: (linkId: string) => void
 }
@@ -50,6 +51,7 @@ export function ForceGraph({
   links = defaultLinks,
   selectedNodeId,
   selectedLinkId,
+  focusNodeId,
   onSelectNode,
   onSelectLink,
 }: ForceGraphProps) {
@@ -60,6 +62,7 @@ export function ForceGraph({
     unknown
   > | null>(null)
   const viewStateRef = useRef<ViewState>({ zoom: 1, panX: 0, panY: 0 })
+  const localNodesRef = useRef<SimNode[]>([])
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const [viewState, setViewState] = useState<ViewState>({
@@ -124,6 +127,7 @@ export function ForceGraph({
     svg.selectAll("*").remove()
 
     const localNodes = preparedNodes.map((node) => ({ ...node }))
+    localNodesRef.current = localNodes
     const localLinks: SimLink[] = links.map((link) => ({ ...link }))
 
     const defs = svg.append("defs")
@@ -309,6 +313,33 @@ export function ForceGraph({
     selectedLinkId,
     selectedNodeId,
   ])
+
+  useEffect(() => {
+    if (!focusNodeId || !dimensions.width || !dimensions.height) return
+
+    const svgElement = svgRef.current
+    const zoomBehavior = zoomBehaviorRef.current
+    if (!svgElement || !zoomBehavior) return
+
+    const timer = setTimeout(() => {
+      const target = localNodesRef.current.find(
+        (node) => node.id === focusNodeId
+      )
+      if (!target || target.x == null || target.y == null) return
+
+      const scale = 1.3
+      const tx = dimensions.width / 2 - target.x * scale
+      const ty = dimensions.height / 2 - target.y * scale
+      const transform = d3.zoomIdentity.translate(tx, ty).scale(scale)
+
+      d3.select(svgElement)
+        .transition()
+        .duration(600)
+        .call(zoomBehavior.transform, transform)
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [focusNodeId, dimensions.width, dimensions.height])
 
   function updateViewState(patch: Partial<ViewState>) {
     const nextState = {
