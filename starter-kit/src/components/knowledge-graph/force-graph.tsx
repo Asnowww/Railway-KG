@@ -30,6 +30,8 @@ interface ForceGraphProps {
   focusNodeId?: string | null
   onSelectNode: (nodeId: string) => void
   onSelectLink: (linkId: string) => void
+  onExpandNode?: (nodeId: string) => void
+  onResetExpand?: () => void
 }
 
 type SimNode = KnowledgeNode &
@@ -43,30 +45,30 @@ type SimLink = d3.SimulationLinkDatum<SimNode> &
     target: SimNode | string
   }
 
-const NODE_RADIUS: Record<string, number> = {
-  defect: 8,
-  "defect-genre": 10,
-  "rail-system": 12,
-  risk: 7,
-  factor: 7,
-  measure: 7,
-  component: 7,
-  facility: 8,
-  function: 7,
-  technique: 7,
+const BASE_RADIUS: Record<string, number> = {
+  defect: 16,
+  "defect-genre": 20,
+  "rail-system": 22,
+  risk: 14,
+  factor: 14,
+  measure: 14,
+  component: 14,
+  facility: 16,
+  function: 14,
+  technique: 14,
 }
 
 const LINK_COLORS: Record<string, string> = {
-  包含: "rgba(148,163,184,0.35)",
-  处理方式: "rgba(43,184,214,0.45)",
-  导致: "rgba(249,115,96,0.50)",
-  分为: "rgba(255,140,66,0.40)",
-  功能: "rgba(74,222,128,0.40)",
-  检测方法: "rgba(154,107,255,0.45)",
-  检测方式: "rgba(154,107,255,0.40)",
-  同: "rgba(148,163,184,0.30)",
-  位于: "rgba(91,141,239,0.45)",
-  原因: "rgba(251,146,60,0.50)",
+  包含: "rgba(148,163,184,0.40)",
+  处理方式: "rgba(43,184,214,0.50)",
+  导致: "rgba(249,115,96,0.55)",
+  分为: "rgba(255,140,66,0.45)",
+  功能: "rgba(74,222,128,0.45)",
+  检测方法: "rgba(154,107,255,0.50)",
+  检测方式: "rgba(154,107,255,0.45)",
+  同: "rgba(148,163,184,0.35)",
+  位于: "rgba(91,141,239,0.50)",
+  原因: "rgba(251,146,60,0.55)",
 }
 
 const defaultNodes = knowledgeNodes
@@ -80,6 +82,8 @@ export function ForceGraph({
   focusNodeId,
   onSelectNode,
   onSelectLink,
+  onExpandNode,
+  onResetExpand,
 }: ForceGraphProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -94,8 +98,7 @@ export function ForceGraph({
   const rafRef = useRef<number>(0)
   const viewStateRef = useRef<ViewState>({ zoom: 1, panX: 0, panY: 0 })
   const hoveredNodeRef = useRef<SimNode | null>(null)
-  const hoveredLinkRef = useRef<SimLink | null>(null)
-  const draggedNodeRef = useRef<SimNode | null>(null)
+  const highlightSetRef = useRef<Set<string>>(new Set())
   const selectedNodeRef = useRef(selectedNodeId)
   const selectedLinkRef = useRef(selectedLinkId)
 
@@ -118,26 +121,25 @@ export function ForceGraph({
   }, [])
 
   useEffect(() => {
-    const onFullscreenChange = () =>
-      setIsFullscreen(!!document.fullscreenElement)
-    document.addEventListener("fullscreenchange", onFullscreenChange)
-    return () =>
-      document.removeEventListener("fullscreenchange", onFullscreenChange)
+    const onFsc = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener("fullscreenchange", onFsc)
+    return () => document.removeEventListener("fullscreenchange", onFsc)
   }, [])
 
   useEffect(() => {
-    const element = wrapperRef.current
-    if (!element) return
+    const el = wrapperRef.current
+    if (!el) return
     const ro = new ResizeObserver(([entry]) =>
       setDimensions({
         width: entry.contentRect.width,
         height: entry.contentRect.height,
       })
     )
-    ro.observe(element)
+    ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
+  /* ───────────── draw (called every frame) ───────────── */
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -145,7 +147,6 @@ export function ForceGraph({
     if (!ctx) return
 
     const dpr = window.devicePixelRatio || 1
-
     ctx.save()
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.scale(dpr, dpr)
@@ -154,107 +155,146 @@ export function ForceGraph({
     ctx.translate(t.x, t.y)
     ctx.scale(t.k, t.k)
 
+    const k = t.k
     const localNodes = nodesRef.current
     const localLinks = linksRef.current
     const selNodeId = selectedNodeRef.current
     const selLinkId = selectedLinkRef.current
 
-    // Draw links
+    // LOD thresholds
+    const showText = k >= 0.55
+    const showArrows = k >= 0.3
+    const isLow = k < 0.3
+
+    // highlight state
+    const hl = highlightSetRef.current
+    const hasHighlight = hl.size > 0
+
+    /* ── links ── */
     for (const link of localLinks) {
       const s = link.source as SimNode
       const tgt = link.target as SimNode
       if (s.x == null || s.y == null || tgt.x == null || tgt.y == null) continue
 
-      const isSelected = link.id === selLinkId
+      const isSel = link.id === selLinkId
+      const isHl = !hasHighlight || (hl.has(s.id) && hl.has(tgt.id))
+
+      ctx.globalAlpha = isSel ? 1 : isHl ? 1 : 0.08
       ctx.beginPath()
       ctx.moveTo(s.x, s.y)
       ctx.lineTo(tgt.x, tgt.y)
-      ctx.strokeStyle = isSelected
+      ctx.strokeStyle = isSel
         ? "#38bdf8"
         : (LINK_COLORS[link.relation] ?? "rgba(148,163,184,0.30)")
-      ctx.lineWidth = isSelected ? 2.5 : 0.8
+      ctx.lineWidth = isSel
+        ? 2.5
+        : isHl && hasHighlight
+          ? 1.2
+          : isLow
+            ? 0.25
+            : 0.7
       ctx.stroke()
 
-      // Arrow head
-      const dx = tgt.x - s.x
-      const dy = tgt.y - s.y
-      const len = Math.sqrt(dx * dx + dy * dy)
-      if (len < 1) continue
-      const tgtR = tgt.radius + 2
-      const ax = tgt.x - (dx / len) * tgtR
-      const ay = tgt.y - (dy / len) * tgtR
-      const angle = Math.atan2(dy, dx)
-      const arrowSize = isSelected ? 6 : 4
-      ctx.beginPath()
-      ctx.moveTo(ax, ay)
-      ctx.lineTo(
-        ax - arrowSize * Math.cos(angle - Math.PI / 6),
-        ay - arrowSize * Math.sin(angle - Math.PI / 6)
-      )
-      ctx.lineTo(
-        ax - arrowSize * Math.cos(angle + Math.PI / 6),
-        ay - arrowSize * Math.sin(angle + Math.PI / 6)
-      )
-      ctx.closePath()
-      ctx.fillStyle = isSelected
-        ? "#38bdf8"
-        : (LINK_COLORS[link.relation] ?? "rgba(148,163,184,0.50)")
-      ctx.fill()
+      if (showArrows && (isHl || isSel)) {
+        const dx = tgt.x - s.x
+        const dy = tgt.y - s.y
+        const len = Math.sqrt(dx * dx + dy * dy)
+        if (len < 1) {
+          ctx.globalAlpha = 1
+          continue
+        }
+        const tgtR = tgt.radius + 2
+        const ax = tgt.x - (dx / len) * tgtR
+        const ay = tgt.y - (dy / len) * tgtR
+        const angle = Math.atan2(dy, dx)
+        const sz = isSel ? 6 : 4
+        ctx.beginPath()
+        ctx.moveTo(ax, ay)
+        ctx.lineTo(
+          ax - sz * Math.cos(angle - Math.PI / 6),
+          ay - sz * Math.sin(angle - Math.PI / 6)
+        )
+        ctx.lineTo(
+          ax - sz * Math.cos(angle + Math.PI / 6),
+          ay - sz * Math.sin(angle + Math.PI / 6)
+        )
+        ctx.closePath()
+        ctx.fillStyle = isSel
+          ? "#38bdf8"
+          : (LINK_COLORS[link.relation] ?? "rgba(148,163,184,0.50)")
+        ctx.fill()
+      }
+
+      // relation label on highlighted links only
+      if (hasHighlight && isHl && showText) {
+        const mx = (s.x + tgt.x) / 2
+        const my = (s.y + tgt.y) / 2
+        const labelFontSize = Math.max(8, Math.min(11, 10 / k))
+        ctx.font = `500 ${labelFontSize}px system-ui, -apple-system, sans-serif`
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        // background pill
+        const tw = ctx.measureText(link.relation).width + 8
+        const th = labelFontSize + 6
+        ctx.fillStyle = "rgba(2,8,23,0.75)"
+        ctx.beginPath()
+        ctx.roundRect(mx - tw / 2, my - th / 2, tw, th, 4)
+        ctx.fill()
+        // text
+        ctx.fillStyle = "rgba(203,213,225,0.9)"
+        ctx.fillText(link.relation, mx, my)
+      }
+
+      ctx.globalAlpha = 1
     }
 
-    // Draw nodes
+    /* ── nodes ── */
     for (const node of localNodes) {
       if (node.x == null || node.y == null) continue
       const meta = nodeTypeMeta[node.type]
       if (!meta) continue
-      const isSelected = node.id === selNodeId
-      const isHovered = node === hoveredNodeRef.current
+      const isSel = node.id === selNodeId
+      const isHov = node === hoveredNodeRef.current
+      const isHl = !hasHighlight || hl.has(node.id)
+      const r = isLow ? Math.max(3, node.radius * 0.5) : node.radius
 
-      // Selection ring
-      if (isSelected) {
+      ctx.globalAlpha = isHl ? 1 : 0.12
+
+      // selection ring
+      if (isSel && isHl) {
         ctx.beginPath()
-        ctx.arc(node.x, node.y, node.radius + 4, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, r + 5, 0, Math.PI * 2)
         ctx.fillStyle = meta.tint
         ctx.fill()
-        ctx.strokeStyle = "rgba(255,255,255,0.3)"
+        ctx.strokeStyle = "rgba(255,255,255,0.35)"
         ctx.lineWidth = 1.5
         ctx.stroke()
       }
 
-      // Main circle
+      // main circle
       ctx.beginPath()
-      ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2)
-      ctx.fillStyle = isHovered ? lightenColor(meta.color, 0.2) : meta.color
+      ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
+      ctx.fillStyle = isHov && isHl ? lightenColor(meta.color, 0.2) : meta.color
       ctx.fill()
 
-      if (isSelected || isHovered) {
+      if ((isSel || isHov) && isHl && !isLow) {
         ctx.strokeStyle = "#e2e8f0"
-        ctx.lineWidth = isSelected ? 2 : 1.5
+        ctx.lineWidth = isSel ? 2 : 1.5
         ctx.stroke()
       }
 
-      // Label - only show when zoomed in enough or selected/hovered
-      const showLabel = t.k > 0.85 || isSelected || isHovered
-      if (showLabel) {
-        const fontSize = Math.max(9, Math.min(12, 10 / t.k))
-        ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-        const label = shorten(node.label, isSelected || isHovered ? 10 : 6)
-
-        // Text shadow
-        ctx.fillStyle = "rgba(0,0,0,0.7)"
-        ctx.fillText(label, node.x + 0.5, node.y + node.radius + fontSize + 0.5)
-        // Text
-        ctx.fillStyle = "#f1f5f9"
-        ctx.fillText(label, node.x, node.y + node.radius + fontSize)
+      // text inside circle
+      if (showText && isHl) {
+        wrapTextInCircle(ctx, node.label, node.x, node.y, r)
       }
+
+      ctx.globalAlpha = 1
     }
 
     ctx.restore()
   }, [])
 
-  // Main simulation setup
+  /* ───────────── simulation setup ───────────── */
   useEffect(() => {
     const canvasEl = canvasRef.current
     if (!canvasEl || !dimensions.width || !dimensions.height) return
@@ -269,30 +309,36 @@ export function ForceGraph({
     const width = dimensions.width
     const height = dimensions.height
 
-    const localNodes: SimNode[] = nodes.map((node) => ({
-      ...node,
-      radius: NODE_RADIUS[node.type] ?? 7,
-    }))
+    // preserve positions of existing nodes
+    const prevMap = new Map(nodesRef.current.map((n) => [n.id, n]))
+
+    // degree map for radius scaling
+    const degMap = new Map<string, number>()
+    for (const link of links) {
+      degMap.set(link.source, (degMap.get(link.source) ?? 0) + 1)
+      degMap.set(link.target, (degMap.get(link.target) ?? 0) + 1)
+    }
+
+    const localNodes: SimNode[] = nodes.map((node) => {
+      const prev = prevMap.get(node.id)
+      const degree = degMap.get(node.id) ?? 0
+      const r = Math.min(
+        32,
+        (BASE_RADIUS[node.type] ?? 14) + Math.sqrt(degree) * 2
+      )
+      return {
+        ...node,
+        radius: r,
+        x: prev?.x ?? width / 2 + (Math.random() - 0.5) * 200,
+        y: prev?.y ?? height / 2 + (Math.random() - 0.5) * 200,
+        vx: prev?.vx ?? 0,
+        vy: prev?.vy ?? 0,
+      }
+    })
     const localLinks: SimLink[] = links.map((link) => ({ ...link }))
 
     nodesRef.current = localNodes
     linksRef.current = localLinks
-
-    // Build node degree map for layout
-    const degreeMap = new Map<string, number>()
-    for (const link of links) {
-      degreeMap.set(link.source, (degreeMap.get(link.source) ?? 0) + 1)
-      degreeMap.set(link.target, (degreeMap.get(link.target) ?? 0) + 1)
-    }
-
-    // Adjust radius by degree
-    for (const node of localNodes) {
-      const degree = degreeMap.get(node.id) ?? 0
-      node.radius = Math.min(
-        18,
-        (NODE_RADIUS[node.type] ?? 7) + Math.sqrt(degree) * 1.2
-      )
-    }
 
     const simulation = d3
       .forceSimulation<SimNode>(localNodes)
@@ -301,36 +347,36 @@ export function ForceGraph({
         d3
           .forceLink<SimNode, SimLink>(localLinks)
           .id((n) => n.id)
-          .distance(60)
-          .strength(0.3)
+          .distance(140)
+          .strength(0.25)
       )
-      .force("charge", d3.forceManyBody().strength(-80).distanceMax(300))
+      .force("charge", d3.forceManyBody().strength(-300).distanceMax(500))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force(
         "collide",
         d3
           .forceCollide<SimNode>()
-          .radius((n) => n.radius + 3)
-          .iterations(1)
+          .radius((n) => n.radius + 18)
+          .iterations(2)
       )
-      .force("x", d3.forceX(width / 2).strength(0.02))
-      .force("y", d3.forceY(height / 2).strength(0.02))
-      .alphaDecay(0.04)
+      .force("x", d3.forceX(width / 2).strength(0.018))
+      .force("y", d3.forceY(height / 2).strength(0.018))
+      .alphaDecay(0.035)
       .velocityDecay(0.4)
 
     simRef.current = simulation
 
-    // Render loop
+    // render loop
     function tick() {
       draw()
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
 
-    // Zoom
+    // zoom
     const zoomBehavior = d3
       .zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([0.15, 4])
+      .scaleExtent([0.08, 5])
       .on("zoom", (event) => {
         transformRef.current = event.transform
         viewStateRef.current = {
@@ -346,16 +392,26 @@ export function ForceGraph({
     zoomBehaviorRef.current = zoomBehavior
     const sel = d3.select(canvas)
     sel.call(zoomBehavior)
+    // disable d3-zoom's default double-click-to-zoom so our dblclick handler works
+    sel.on("dblclick.zoom", null)
 
-    // Initial transform to center
-    const initialTransform = d3.zoomIdentity.translate(0, 0).scale(0.8)
-    sel.call(zoomBehavior.transform, initialTransform)
+    // initial transform
+    const initScale = 0.7
+    sel.call(
+      zoomBehavior.transform,
+      d3.zoomIdentity
+        .translate(
+          width * (1 - initScale) * 0.5,
+          height * (1 - initScale) * 0.5
+        )
+        .scale(initScale)
+    )
 
-    // Hit testing
+    /* ── hit testing ── */
     function findNodeAt(mx: number, my: number): SimNode | null {
-      const t = transformRef.current
-      const x = (mx - t.x) / t.k
-      const y = (my - t.y) / t.k
+      const tr = transformRef.current
+      const x = (mx - tr.x) / tr.k
+      const y = (my - tr.y) / tr.k
       for (let i = localNodes.length - 1; i >= 0; i--) {
         const n = localNodes[i]
         if (n.x == null || n.y == null) continue
@@ -367,21 +423,20 @@ export function ForceGraph({
     }
 
     function findLinkAt(mx: number, my: number): SimLink | null {
-      const t = transformRef.current
-      const x = (mx - t.x) / t.k
-      const y = (my - t.y) / t.k
-      const threshold = 5 / t.k
+      const tr = transformRef.current
+      const x = (mx - tr.x) / tr.k
+      const y = (my - tr.y) / tr.k
+      const threshold = 6 / tr.k
       for (const link of localLinks) {
         const s = link.source as SimNode
         const tg = link.target as SimNode
         if (s.x == null || s.y == null || tg.x == null || tg.y == null) continue
-        const dist = pointToSegmentDist(x, y, s.x, s.y, tg.x, tg.y)
-        if (dist < threshold) return link
+        if (pointToSegDist(x, y, s.x, s.y, tg.x, tg.y) < threshold) return link
       }
       return null
     }
 
-    // Mouse events
+    /* ── mouse events ── */
     function onMouseMove(e: MouseEvent) {
       const rect = canvas.getBoundingClientRect()
       const mx = e.clientX - rect.left
@@ -397,23 +452,21 @@ export function ForceGraph({
           x: mx + 16,
           y: my + 16,
           title: node.label,
-          subtitle: meta ? `${meta.label}` : node.type,
-          meta: node.summary ?? `度: ${degreeMap.get(node.id) ?? 0}`,
+          subtitle: meta ? meta.label : node.type,
+          meta: `度: ${degMap.get(node.id) ?? 0}  |  双击展开邻居`,
         })
-        hoveredLinkRef.current = null
         return
       }
 
       const link = findLinkAt(mx, my)
-      hoveredLinkRef.current = link
       if (link) {
         canvas.style.cursor = "pointer"
         const s = link.source as SimNode
-        const t = link.target as SimNode
+        const tgt = link.target as SimNode
         setTooltip({
           x: mx + 16,
           y: my + 16,
-          title: `${s.label} → ${t.label}`,
+          title: `${s.label} → ${tgt.label}`,
           subtitle: link.relation,
           meta: link.evidence ?? "",
         })
@@ -428,44 +481,57 @@ export function ForceGraph({
       const rect = canvas.getBoundingClientRect()
       const mx = e.clientX - rect.left
       const my = e.clientY - rect.top
-
       const node = findNodeAt(mx, my)
       if (node) {
         onSelectNode(node.id)
         return
       }
       const link = findLinkAt(mx, my)
-      if (link) {
-        onSelectLink(link.id)
-      }
+      if (link) onSelectLink(link.id)
     }
 
-    canvas.addEventListener("mousemove", onMouseMove)
-    canvas.addEventListener("click", onClick)
-
-    // Drag
-    let dragNode: SimNode | null = null
-    function onMouseDown(e: MouseEvent) {
+    function onDblClick(e: MouseEvent) {
       const rect = canvas.getBoundingClientRect()
       const mx = e.clientX - rect.left
       const my = e.clientY - rect.top
       const node = findNodeAt(mx, my)
       if (node) {
+        // build highlight set: this node + its direct neighbors
+        const neighbors = new Set<string>([node.id])
+        for (const link of localLinks) {
+          const sId = (link.source as SimNode).id
+          const tId = (link.target as SimNode).id
+          if (sId === node.id) neighbors.add(tId)
+          if (tId === node.id) neighbors.add(sId)
+        }
+        highlightSetRef.current = neighbors
+        if (onExpandNode) onExpandNode(node.id)
+      } else {
+        // double-click on empty → clear highlight & collapse
+        highlightSetRef.current = new Set()
+        if (onResetExpand) onResetExpand()
+      }
+    }
+
+    /* ── drag ── */
+    let dragNode: SimNode | null = null
+    function onMouseDown(e: MouseEvent) {
+      const rect = canvas.getBoundingClientRect()
+      const node = findNodeAt(e.clientX - rect.left, e.clientY - rect.top)
+      if (node) {
         dragNode = node
-        draggedNodeRef.current = node
         simulation.alphaTarget(0.3).restart()
         node.fx = node.x
         node.fy = node.y
-        // Prevent zoom panning while dragging node
         sel.on(".zoom", null)
       }
     }
     function onMouseMoveDrag(e: MouseEvent) {
       if (!dragNode) return
       const rect = canvas.getBoundingClientRect()
-      const t = transformRef.current
-      dragNode.fx = (e.clientX - rect.left - t.x) / t.k
-      dragNode.fy = (e.clientY - rect.top - t.y) / t.k
+      const tr = transformRef.current
+      dragNode.fx = (e.clientX - rect.left - tr.x) / tr.k
+      dragNode.fy = (e.clientY - rect.top - tr.y) / tr.k
     }
     function onMouseUp() {
       if (dragNode) {
@@ -473,12 +539,14 @@ export function ForceGraph({
         dragNode.fx = null
         dragNode.fy = null
         dragNode = null
-        draggedNodeRef.current = null
-        // Re-enable zoom
         sel.call(zoomBehavior)
+        sel.on("dblclick.zoom", null)
       }
     }
 
+    canvas.addEventListener("mousemove", onMouseMove)
+    canvas.addEventListener("click", onClick)
+    canvas.addEventListener("dblclick", onDblClick)
     canvas.addEventListener("mousedown", onMouseDown)
     window.addEventListener("mousemove", onMouseMoveDrag)
     window.addEventListener("mouseup", onMouseUp)
@@ -488,6 +556,7 @@ export function ForceGraph({
       cancelAnimationFrame(rafRef.current)
       canvas.removeEventListener("mousemove", onMouseMove)
       canvas.removeEventListener("click", onClick)
+      canvas.removeEventListener("dblclick", onDblClick)
       canvas.removeEventListener("mousedown", onMouseDown)
       window.removeEventListener("mousemove", onMouseMoveDrag)
       window.removeEventListener("mouseup", onMouseUp)
@@ -500,9 +569,11 @@ export function ForceGraph({
     draw,
     onSelectNode,
     onSelectLink,
+    onExpandNode,
+    onResetExpand,
   ])
 
-  // Focus node
+  /* ── focus node ── */
   useEffect(() => {
     if (!focusNodeId || !dimensions.width || !dimensions.height) return
     const canvas = canvasRef.current
@@ -516,12 +587,13 @@ export function ForceGraph({
       const scale = 2
       const tx = dimensions.width / 2 - target.x * scale
       const ty = dimensions.height / 2 - target.y * scale
-      const transform = d3.zoomIdentity.translate(tx, ty).scale(scale)
-
       d3.select(canvas)
         .transition()
         .duration(600)
-        .call(zoomBehavior.transform, transform)
+        .call(
+          zoomBehavior.transform,
+          d3.zoomIdentity.translate(tx, ty).scale(scale)
+        )
     }, 400)
 
     return () => clearTimeout(timer)
@@ -534,15 +606,14 @@ export function ForceGraph({
 
     const current = transformRef.current
     let newK = patch.zoom ?? current.k
-    newK = Math.max(0.15, Math.min(4, newK))
-    const transform = d3.zoomIdentity
-      .translate(current.x, current.y)
-      .scale(newK)
-
+    newK = Math.max(0.08, Math.min(5, newK))
     d3.select(canvas)
       .transition()
       .duration(200)
-      .call(zoomBehavior.transform, transform)
+      .call(
+        zoomBehavior.transform,
+        d3.zoomIdentity.translate(current.x, current.y).scale(newK)
+      )
   }
 
   return (
@@ -616,7 +687,54 @@ export function ForceGraph({
   )
 }
 
-function pointToSegmentDist(
+/* ────── helpers ────── */
+
+function wrapTextInCircle(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  radius: number
+) {
+  const fontSize = Math.max(7, Math.min(12, radius * 0.6))
+  ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+
+  const maxWidth = radius * 1.6
+  const charWidth = fontSize * 0.95
+  const charsPerLine = Math.max(1, Math.floor(maxWidth / charWidth))
+
+  const lines: string[] = []
+  for (let i = 0; i < text.length; i += charsPerLine) {
+    lines.push(text.slice(i, i + charsPerLine))
+  }
+
+  const maxLines = Math.max(1, Math.floor((radius * 1.7) / (fontSize * 1.25)))
+  const display = lines.slice(0, maxLines)
+  if (lines.length > maxLines && display.length > 0) {
+    const last = display[display.length - 1]
+    if (last.length > 1) {
+      display[display.length - 1] = last.slice(0, -1) + "\u2026"
+    }
+  }
+
+  const lh = fontSize * 1.25
+  const startY = y - ((display.length - 1) * lh) / 2
+
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.55)"
+  for (let i = 0; i < display.length; i++) {
+    ctx.fillText(display[i], x + 0.5, startY + i * lh + 0.5)
+  }
+  // text
+  ctx.fillStyle = "#f1f5f9"
+  for (let i = 0; i < display.length; i++) {
+    ctx.fillText(display[i], x, startY + i * lh)
+  }
+}
+
+function pointToSegDist(
   px: number,
   py: number,
   ax: number,
@@ -628,20 +746,13 @@ function pointToSegmentDist(
   const dy = by - ay
   const lenSq = dx * dx + dy * dy
   if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2)
-  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq
-  t = Math.max(0, Math.min(1, t))
-  const projX = ax + t * dx
-  const projY = ay + t * dy
-  return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2)
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq))
+  return Math.sqrt((px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2)
 }
 
-function lightenColor(hex: string, amount: number) {
+function lightenColor(hex: string, amt: number) {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
-  return `rgb(${Math.min(255, r + 255 * amount)},${Math.min(255, g + 255 * amount)},${Math.min(255, b + 255 * amount)})`
-}
-
-function shorten(label: string, maxLen: number = 6) {
-  return label.length > maxLen ? `${label.slice(0, maxLen)}..` : label
+  return `rgb(${Math.min(255, r + 255 * amt)},${Math.min(255, g + 255 * amt)},${Math.min(255, b + 255 * amt)})`
 }

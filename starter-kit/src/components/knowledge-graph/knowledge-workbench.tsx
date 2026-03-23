@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react"
 
-import type { LucideIcon } from "lucide-react"
+import type { KnowledgeNodeType } from "@/data/kg-mock"
 
 import {
   knowledgeDocuments,
@@ -47,6 +47,17 @@ const ForceGraph = dynamic(
   }
 )
 
+/* ── pre-computed degree map (from ALL links) ── */
+const DEGREE_THRESHOLD = 3
+
+const globalDegreeMap = new Map<string, number>()
+for (const link of knowledgeLinks) {
+  globalDegreeMap.set(link.source, (globalDegreeMap.get(link.source) ?? 0) + 1)
+  globalDegreeMap.set(link.target, (globalDegreeMap.get(link.target) ?? 0) + 1)
+}
+
+const nodeIdToLabel = new Map(knowledgeNodes.map((n) => [n.id, n.label]))
+
 export function KnowledgeWorkbench() {
   const [activeDocumentId, setActiveDocumentId] = useState(
     knowledgeDocuments[0].id
@@ -60,6 +71,60 @@ export function KnowledgeWorkbench() {
   const [graphSearchOpen, setGraphSearchOpen] = useState(false)
   const graphSearchRef = useRef<HTMLInputElement>(null)
 
+  /* ── D: lazy expansion state ── */
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () => new Set()
+  )
+
+  /* ── E: type filter state ── */
+  const [enabledTypes, setEnabledTypes] = useState<Set<KnowledgeNodeType>>(
+    () => new Set(Object.keys(nodeTypeMeta) as KnowledgeNodeType[])
+  )
+
+  const toggleType = useCallback((type: KnowledgeNodeType) => {
+    setEnabledTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+  }, [])
+
+  /* ── compute visible nodes & links ── */
+  const { visibleNodes, visibleLinks } = useMemo(() => {
+    const visibleIds = new Set<string>()
+    for (const node of knowledgeNodes) {
+      if (!enabledTypes.has(node.type)) continue
+      const degree = globalDegreeMap.get(node.id) ?? 0
+      if (degree >= DEGREE_THRESHOLD || expandedNodeIds.has(node.id)) {
+        visibleIds.add(node.id)
+      }
+    }
+    const vNodes = knowledgeNodes.filter((n) => visibleIds.has(n.id))
+    const vLinks = knowledgeLinks.filter(
+      (l) => visibleIds.has(l.source) && visibleIds.has(l.target)
+    )
+    return { visibleNodes: vNodes, visibleLinks: vLinks }
+  }, [enabledTypes, expandedNodeIds])
+
+  /* ── expand handler (double-click in graph) ── */
+  const handleExpandNode = useCallback((nodeId: string) => {
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev)
+      for (const link of knowledgeLinks) {
+        if (link.source === nodeId) next.add(link.target)
+        if (link.target === nodeId) next.add(link.source)
+      }
+      return next
+    })
+  }, [])
+
+  /* ── reset handler (double-click empty space) ── */
+  const handleResetExpand = useCallback(() => {
+    setExpandedNodeIds(new Set())
+  }, [])
+
+  /* ── search ── */
   const graphSearchResults = useMemo(
     () =>
       graphSearch.trim()
@@ -91,7 +156,11 @@ export function KnowledgeWorkbench() {
   const selectedNode = useMemo(
     () =>
       knowledgeNodes.find((node) => node.id === selectedNodeId) ??
-      knowledgeNodes[0] ?? { id: "", label: "未选择", type: "defect" as const },
+      knowledgeNodes[0] ?? {
+        id: "",
+        label: "未选择",
+        type: "defect" as const,
+      },
     [selectedNodeId]
   )
 
@@ -106,15 +175,26 @@ export function KnowledgeWorkbench() {
   const nodeDistribution = useMemo(
     () =>
       Object.entries(
-        knowledgeNodes.reduce<Record<string, number>>((accumulator, node) => {
-          accumulator[node.type] = (accumulator[node.type] ?? 0) + 1
-          return accumulator
+        knowledgeNodes.reduce<Record<string, number>>((acc, node) => {
+          acc[node.type] = (acc[node.type] ?? 0) + 1
+          return acc
         }, {})
       ),
     []
   )
 
   const highlightedRelations = useMemo(() => knowledgeLinks.slice(0, 6), [])
+
+  /* ── search result click → ensure visible + focus ── */
+  const handleSearchSelect = useCallback((nodeId: string) => {
+    setExpandedNodeIds((prev) => new Set([...prev, nodeId]))
+    setSelectedNodeId(nodeId)
+    setSelectedLinkId(null)
+    setFocusNodeId(null)
+    requestAnimationFrame(() => setFocusNodeId(nodeId))
+    setGraphSearch("")
+    setGraphSearchOpen(false)
+  }, [])
 
   return (
     <section className="relative overflow-hidden bg-[#050816] text-white">
@@ -127,6 +207,7 @@ export function KnowledgeWorkbench() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-12">
+          {/* ── 源文档 ── */}
           <Card
             className={cn(
               panelClassName,
@@ -149,7 +230,6 @@ export function KnowledgeWorkbench() {
                 <div className="space-y-2">
                   {knowledgeDocuments.map((document) => {
                     const isActive = document.id === activeDocument.id
-
                     return (
                       <button
                         key={document.id}
@@ -183,6 +263,7 @@ export function KnowledgeWorkbench() {
             </CardContent>
           </Card>
 
+          {/* ── 文档内容 ── */}
           <Card
             className={cn(
               panelClassName,
@@ -227,6 +308,9 @@ export function KnowledgeWorkbench() {
                           <HighlightedText
                             text={paragraph}
                             onClickEntity={(nodeId) => {
+                              setExpandedNodeIds(
+                                (prev) => new Set([...prev, nodeId])
+                              )
                               setSelectedNodeId(nodeId)
                               setSelectedLinkId(null)
                               setFocusNodeId(null)
@@ -244,6 +328,7 @@ export function KnowledgeWorkbench() {
             </CardContent>
           </Card>
 
+          {/* ── 力导向子图 ── */}
           <Card
             className={cn(
               panelClassName,
@@ -253,21 +338,54 @@ export function KnowledgeWorkbench() {
             <CardHeader className="border-b border-white/8 pb-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
-                  <div className="text-sm text-slate-400">D3 力导向子图</div>
+                  <div className="text-sm text-slate-400">
+                    D3 力导向子图 · 显示{" "}
+                    <span className="font-semibold text-cyan-300">
+                      {visibleNodes.length}
+                    </span>{" "}
+                    / {knowledgeNodes.length} 节点 ·{" "}
+                    <span className="font-semibold text-cyan-300">
+                      {visibleLinks.length}
+                    </span>{" "}
+                    / {knowledgeLinks.length} 边
+                  </div>
                   <CardTitle className="text-2xl text-white">
                     轨道病害关联子图
                   </CardTitle>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.values(nodeTypeMeta).map((meta) => (
-                    <span
-                      key={meta.label}
-                      className="rounded-full border border-white/8 px-3 py-1 text-xs font-medium text-slate-300"
-                      style={{ backgroundColor: meta.tint }}
-                    >
-                      {meta.label}
-                    </span>
-                  ))}
+                {/* ── E: type filter toggles ── */}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      Object.entries(nodeTypeMeta) as [
+                        KnowledgeNodeType,
+                        (typeof nodeTypeMeta)[KnowledgeNodeType],
+                      ][]
+                    ).map(([type, meta]) => {
+                      const isOn = enabledTypes.has(type)
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleType(type)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs font-medium transition",
+                            isOn
+                              ? "border-white/20 text-white"
+                              : "border-white/5 text-slate-600 opacity-40"
+                          )}
+                          style={{
+                            backgroundColor: isOn ? meta.tint : "transparent",
+                          }}
+                        >
+                          {meta.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="text-right text-[11px] text-slate-500">
+                    点击上方标签可开关对应实体类型的显示
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -275,14 +393,13 @@ export function KnowledgeWorkbench() {
               <div className="pointer-events-none absolute inset-x-5 top-5 z-10 flex flex-wrap items-start justify-between gap-2">
                 <div className="pointer-events-auto flex flex-wrap gap-2">
                   <FloatingBadge
-                    label="当前文档"
-                    value={activeDocument.title}
-                  />
-                  <FloatingBadge
                     label="当前选择"
                     value={selectedLink ? "关系详情" : selectedNode.label}
                   />
-                  <FloatingBadge label="交互模式" value="拖拽 / 缩放 / 点击" />
+                  <FloatingBadge
+                    label="交互"
+                    value="单击选中 · 双击展开 · 拖拽移动"
+                  />
                 </div>
                 <div className="pointer-events-auto relative">
                   <div
@@ -321,10 +438,7 @@ export function KnowledgeWorkbench() {
                             event.key === "Enter" &&
                             graphSearchResults.length > 0
                           ) {
-                            setSelectedNodeId(graphSearchResults[0].id)
-                            setSelectedLinkId(null)
-                            setGraphSearch("")
-                            setGraphSearchOpen(false)
+                            handleSearchSelect(graphSearchResults[0].id)
                           }
                         }}
                         className="w-full bg-transparent text-xs text-white placeholder:text-slate-500 focus:outline-none"
@@ -340,22 +454,17 @@ export function KnowledgeWorkbench() {
                             key={node.id}
                             type="button"
                             className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-white/[0.06]"
-                            onClick={() => {
-                              setSelectedNodeId(node.id)
-                              setSelectedLinkId(null)
-                              setGraphSearch("")
-                              setGraphSearchOpen(false)
-                            }}
+                            onClick={() => handleSearchSelect(node.id)}
                           >
                             <span
                               className="h-2 w-2 shrink-0 rounded-full"
-                              style={{ backgroundColor: meta.color }}
+                              style={{ backgroundColor: meta?.color }}
                             />
                             <span className="truncate text-xs font-medium text-white">
                               {node.label}
                             </span>
                             <span className="ml-auto text-[10px] text-slate-500">
-                              {meta.label}
+                              {meta?.label}
                             </span>
                           </button>
                         )
@@ -367,16 +476,21 @@ export function KnowledgeWorkbench() {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.46),rgba(2,6,23,0.82))]" />
               <div className="absolute inset-0 px-3 pb-0 pt-14 sm:px-4">
                 <ForceGraph
+                  nodes={visibleNodes}
+                  links={visibleLinks}
                   selectedLinkId={selectedLinkId}
                   selectedNodeId={selectedNodeId}
                   focusNodeId={focusNodeId}
                   onSelectLink={setSelectedLinkId}
                   onSelectNode={handleSelectNode}
+                  onExpandNode={handleExpandNode}
+                  onResetExpand={handleResetExpand}
                 />
               </div>
             </CardContent>
           </Card>
 
+          {/* ── 实体浏览 ── */}
           <Card
             className={cn(
               panelClassName,
@@ -388,7 +502,7 @@ export function KnowledgeWorkbench() {
                 <div>
                   <CardTitle className="text-lg text-white">实体浏览</CardTitle>
                   <CardDescription className="text-slate-400">
-                    结构化实体列表，点击后联动右侧详情。
+                    当前可见实体，点击联动详情与图谱。
                   </CardDescription>
                 </div>
                 <DatabaseZap className="h-5 w-5 text-violet-300" />
@@ -397,7 +511,7 @@ export function KnowledgeWorkbench() {
             <CardContent className="min-h-0 flex-1 p-3">
               <ScrollArea className="h-full pr-1">
                 <div className="space-y-2">
-                  {knowledgeNodes.slice(0, 100).map((node) => {
+                  {visibleNodes.slice(0, 200).map((node) => {
                     const meta = nodeTypeMeta[node.type]
                     if (!meta) return null
                     const isSelected = node.id === selectedNode.id
@@ -429,7 +543,8 @@ export function KnowledgeWorkbench() {
                               {node.label}
                             </div>
                             <div className="truncate text-xs text-slate-400">
-                              {meta.label}
+                              {meta.label} · 度{" "}
+                              {globalDegreeMap.get(node.id) ?? 0}
                             </div>
                           </div>
                         </div>
@@ -441,6 +556,7 @@ export function KnowledgeWorkbench() {
             </CardContent>
           </Card>
 
+          {/* ── 实体/关系详情 ── */}
           <Card
             className={cn(
               panelClassName,
@@ -455,8 +571,8 @@ export function KnowledgeWorkbench() {
                   </CardTitle>
                   <CardDescription className="text-slate-400">
                     {selectedLink
-                      ? "显示当前关系的证据和置信度。"
-                      : "显示当前节点的摘要、属性和关联证据。"}
+                      ? "显示当前关系的证据。"
+                      : "显示当前节点的关联关系。"}
                   </CardDescription>
                 </div>
                 <ShieldAlert className="h-5 w-5 text-amber-300" />
@@ -483,7 +599,6 @@ export function KnowledgeWorkbench() {
                         </p>
                       )}
                     </div>
-
                     <div className="flex flex-col justify-between rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
                       <div className="space-y-4">
                         <DetailMetric
@@ -529,6 +644,9 @@ export function KnowledgeWorkbench() {
                               {nodeTypeMeta[selectedNode.type].label}
                             </span>
                           )}
+                          <span className="text-xs text-slate-500">
+                            度 {globalDegreeMap.get(selectedNode.id) ?? 0}
+                          </span>
                         </div>
                         <div className="mt-4 text-2xl font-semibold text-white">
                           {selectedNode.label}
@@ -596,6 +714,7 @@ export function KnowledgeWorkbench() {
             </CardContent>
           </Card>
 
+          {/* ── 图谱快照 ── */}
           <Card
             className={cn(
               panelClassName,
@@ -607,7 +726,7 @@ export function KnowledgeWorkbench() {
                 <div>
                   <CardTitle className="text-lg text-white">图谱快照</CardTitle>
                   <CardDescription className="text-slate-400">
-                    实体分布、视觉风格说明和证据链入口。
+                    实体分布与证据链入口。
                   </CardDescription>
                 </div>
                 <Sparkles className="h-5 w-5 text-cyan-300" />
@@ -618,7 +737,7 @@ export function KnowledgeWorkbench() {
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
                     <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                      实体类型占比
+                      全量实体类型占比
                     </div>
                     <div className="mt-4 space-y-3">
                       {nodeDistribution.map(([type, count]) => {
@@ -628,7 +747,6 @@ export function KnowledgeWorkbench() {
                         const percentage = Math.round(
                           (count / knowledgeNodes.length) * 100
                         )
-
                         return (
                           <ProgressRow
                             key={type}
@@ -642,42 +760,27 @@ export function KnowledgeWorkbench() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                        视觉方向
-                      </div>
-                      <div className="mt-3 space-y-3 text-sm text-slate-300">
-                        <InfoLine icon={Sparkles} text="深色高对比主背景" />
-                        <InfoLine
-                          icon={DatabaseZap}
-                          text="Bento 网格严格对齐"
-                        />
-                        <InfoLine icon={FileSearch} text="圆角图卡和柔和辉光" />
-                      </div>
+                  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                      证据链
                     </div>
-                    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                        证据链
-                      </div>
-                      <div className="mt-3 space-y-3">
-                        {highlightedRelations.map((link) => (
-                          <button
-                            key={link.id}
-                            className="block w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
-                            onClick={() => setSelectedLinkId(link.id)}
-                            type="button"
-                          >
-                            <div className="text-sm font-medium text-white">
-                              {link.relation}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-400">
-                              {labelForNode(link.source)} {"->"}{" "}
-                              {labelForNode(link.target)}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="mt-3 space-y-3">
+                      {highlightedRelations.map((link) => (
+                        <button
+                          key={link.id}
+                          className="block w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
+                          onClick={() => setSelectedLinkId(link.id)}
+                          type="button"
+                        >
+                          <div className="text-sm font-medium text-white">
+                            {link.relation}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-400">
+                            {labelForNode(link.source)} {"→"}{" "}
+                            {labelForNode(link.target)}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -690,8 +793,10 @@ export function KnowledgeWorkbench() {
   )
 }
 
+/* ────── helpers ────── */
+
 function labelForNode(nodeId: string) {
-  return knowledgeNodes.find((node) => node.id === nodeId)?.label ?? nodeId
+  return nodeIdToLabel.get(nodeId) ?? nodeId
 }
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
@@ -728,17 +833,6 @@ function ProgressRow({
           style={{ width: `${percentage}%`, backgroundColor: color }}
         />
       </div>
-    </div>
-  )
-}
-
-function InfoLine({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="rounded-xl bg-white/[0.06] p-2">
-        <Icon className="h-4 w-4 text-cyan-300" />
-      </div>
-      <span>{text}</span>
     </div>
   )
 }
