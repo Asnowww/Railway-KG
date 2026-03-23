@@ -51,7 +51,9 @@ export function KnowledgeWorkbench() {
   const [activeDocumentId, setActiveDocumentId] = useState(
     knowledgeDocuments[0].id
   )
-  const [selectedNodeId, setSelectedNodeId] = useState(knowledgeNodes[0].id)
+  const [selectedNodeId, setSelectedNodeId] = useState(
+    knowledgeNodes[0]?.id ?? ""
+  )
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null)
   const [graphSearch, setGraphSearch] = useState("")
@@ -61,11 +63,15 @@ export function KnowledgeWorkbench() {
   const graphSearchResults = useMemo(
     () =>
       graphSearch.trim()
-        ? knowledgeNodes.filter(
-            (node) =>
-              node.label.includes(graphSearch.trim()) ||
-              nodeTypeMeta[node.type].label.includes(graphSearch.trim())
-          )
+        ? knowledgeNodes
+            .filter(
+              (node) =>
+                node.label.includes(graphSearch.trim()) ||
+                (nodeTypeMeta[node.type]?.label ?? "").includes(
+                  graphSearch.trim()
+                )
+            )
+            .slice(0, 20)
         : [],
     [graphSearch]
   )
@@ -85,7 +91,7 @@ export function KnowledgeWorkbench() {
   const selectedNode = useMemo(
     () =>
       knowledgeNodes.find((node) => node.id === selectedNodeId) ??
-      knowledgeNodes[0],
+      knowledgeNodes[0] ?? { id: "", label: "未选择", type: "defect" as const },
     [selectedNodeId]
   )
 
@@ -108,7 +114,7 @@ export function KnowledgeWorkbench() {
     []
   )
 
-  const highlightedRelations = useMemo(() => knowledgeLinks.slice(0, 4), [])
+  const highlightedRelations = useMemo(() => knowledgeLinks.slice(0, 6), [])
 
   return (
     <section className="relative overflow-hidden bg-[#050816] text-white">
@@ -391,8 +397,9 @@ export function KnowledgeWorkbench() {
             <CardContent className="min-h-0 flex-1 p-3">
               <ScrollArea className="h-full pr-1">
                 <div className="space-y-2">
-                  {knowledgeNodes.map((node) => {
+                  {knowledgeNodes.slice(0, 100).map((node) => {
                     const meta = nodeTypeMeta[node.type]
+                    if (!meta) return null
                     const isSelected = node.id === selectedNode.id
 
                     return (
@@ -407,6 +414,8 @@ export function KnowledgeWorkbench() {
                         onClick={() => {
                           setSelectedNodeId(node.id)
                           setSelectedLinkId(null)
+                          setFocusNodeId(null)
+                          requestAnimationFrame(() => setFocusNodeId(node.id))
                         }}
                         type="button"
                       >
@@ -420,13 +429,10 @@ export function KnowledgeWorkbench() {
                               {node.label}
                             </div>
                             <div className="truncate text-xs text-slate-400">
-                              {meta.label} / 提及 {node.mentions} 次
+                              {meta.label}
                             </div>
                           </div>
                         </div>
-                        <span className="ml-3 text-xs font-medium text-slate-300">
-                          {(node.confidence * 100).toFixed(0)}%
-                        </span>
                       </button>
                     )
                   })}
@@ -465,21 +471,17 @@ export function KnowledgeWorkbench() {
                         <Badge className="rounded-full border-0 bg-amber-300/18 text-amber-200 hover:bg-amber-300/18">
                           当前选中关系边
                         </Badge>
-                        <Badge
-                          variant="outline"
-                          className="rounded-full border-white/10 bg-white/[0.04] text-slate-200"
-                        >
-                          {(selectedLink.confidence * 100).toFixed(0)}% 置信度
-                        </Badge>
                       </div>
                       <div className="mt-4 text-2xl font-semibold text-white">
                         {labelForNode(selectedLink.source)}{" "}
                         {selectedLink.relation}{" "}
                         {labelForNode(selectedLink.target)}
                       </div>
-                      <p className="mt-4 text-sm leading-7 text-slate-300">
-                        {selectedLink.evidence}
-                      </p>
+                      {selectedLink.evidence && (
+                        <p className="mt-4 text-sm leading-7 text-slate-300">
+                          {selectedLink.evidence}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-col justify-between rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
@@ -515,51 +517,52 @@ export function KnowledgeWorkbench() {
                     <div className="space-y-4">
                       <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className="rounded-full px-3 py-1 text-xs font-semibold"
-                            style={{
-                              backgroundColor:
-                                nodeTypeMeta[selectedNode.type].tint,
-                              color: nodeTypeMeta[selectedNode.type].color,
-                            }}
-                          >
-                            {nodeTypeMeta[selectedNode.type].label}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="rounded-full border-white/10 bg-white/[0.04] text-slate-200"
-                          >
-                            {(selectedNode.confidence * 100).toFixed(0)}% 置信度
-                          </Badge>
+                          {nodeTypeMeta[selectedNode.type] && (
+                            <span
+                              className="rounded-full px-3 py-1 text-xs font-semibold"
+                              style={{
+                                backgroundColor:
+                                  nodeTypeMeta[selectedNode.type].tint,
+                                color: nodeTypeMeta[selectedNode.type].color,
+                              }}
+                            >
+                              {nodeTypeMeta[selectedNode.type].label}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-4 text-2xl font-semibold text-white">
                           {selectedNode.label}
                         </div>
-                        <p className="mt-3 text-sm leading-7 text-slate-300">
-                          {selectedNode.summary}
-                        </p>
+                        {selectedNode.summary && (
+                          <p className="mt-3 text-sm leading-7 text-slate-300">
+                            {selectedNode.summary}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {selectedNode.properties.map((property) => (
-                          <div
-                            key={property.label}
-                            className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
-                          >
-                            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                              {property.label}
-                            </div>
-                            <div className="mt-2 text-sm font-medium text-slate-200">
-                              {property.value}
-                            </div>
+                      {selectedNode.properties &&
+                        selectedNode.properties.length > 0 && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {selectedNode.properties.map((property) => (
+                              <div
+                                key={property.label}
+                                className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
+                              >
+                                <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                                  {property.label}
+                                </div>
+                                <div className="mt-2 text-sm font-medium text-slate-200">
+                                  {property.value}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        )}
                     </div>
 
                     <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
                       <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                        关联证据
+                        关联关系
                       </div>
                       <div className="mt-4 space-y-3">
                         {knowledgeLinks
@@ -568,7 +571,7 @@ export function KnowledgeWorkbench() {
                               link.source === selectedNode.id ||
                               link.target === selectedNode.id
                           )
-                          .slice(0, 3)
+                          .slice(0, 5)
                           .map((link) => (
                             <button
                               key={link.id}
@@ -580,7 +583,8 @@ export function KnowledgeWorkbench() {
                                 {link.relation}
                               </div>
                               <div className="mt-1 text-xs text-slate-400">
-                                {(link.confidence * 100).toFixed(0)}% 置信度
+                                {labelForNode(link.source)} →{" "}
+                                {labelForNode(link.target)}
                               </div>
                             </button>
                           ))}
@@ -620,6 +624,7 @@ export function KnowledgeWorkbench() {
                       {nodeDistribution.map(([type, count]) => {
                         const meta =
                           nodeTypeMeta[type as keyof typeof nodeTypeMeta]
+                        if (!meta) return null
                         const percentage = Math.round(
                           (count / knowledgeNodes.length) * 100
                         )
@@ -747,16 +752,20 @@ function FloatingBadge({ label, value }: { label: string; value: string }) {
   )
 }
 
+const labelToNode = new Map(knowledgeNodes.map((n) => [n.label, n]))
+
 const entityPattern = (() => {
   const labels = knowledgeNodes
-    .map((node) => node.label)
+    .map((n) => n.label)
+    .filter((l) => l.length >= 2)
     .sort((a, b) => b.length - a.length)
-  return new RegExp(`(${labels.map(escapeRegex).join("|")})`, "g")
+    .slice(0, 200)
+  if (labels.length === 0) return null
+  return new RegExp(
+    `(${labels.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "g"
+  )
 })()
-
-function escapeRegex(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
 
 function HighlightedText({
   text,
@@ -765,15 +774,19 @@ function HighlightedText({
   text: string
   onClickEntity: (nodeId: string) => void
 }) {
+  if (!entityPattern) return <span>{text}</span>
+
   const parts = text.split(entityPattern)
 
   return (
     <>
       {parts.map((part, index) => {
-        const node = knowledgeNodes.find((n) => n.label === part)
+        const node = labelToNode.get(part)
         if (!node) return <span key={index}>{part}</span>
 
         const meta = nodeTypeMeta[node.type]
+        if (!meta) return <span key={index}>{part}</span>
+
         return (
           <button
             key={index}
