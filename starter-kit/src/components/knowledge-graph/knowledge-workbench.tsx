@@ -359,7 +359,7 @@ export function KnowledgeWorkbench() {
                 </div>
               </div>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.46),rgba(2,6,23,0.82))]" />
-              <div className="absolute inset-0 px-3 pb-3 pt-14 sm:px-4">
+              <div className="absolute inset-0 px-3 pb-0 pt-14 sm:px-4">
                 <ForceGraph
                   selectedLinkId={selectedLinkId}
                   selectedNodeId={selectedNodeId}

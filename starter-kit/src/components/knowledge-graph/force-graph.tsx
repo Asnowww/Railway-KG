@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as d3 from "d3"
-import { ZoomIn, ZoomOut } from "lucide-react"
+import { Maximize, Minimize, ZoomIn, ZoomOut } from "lucide-react"
 
 import type { KnowledgeLink, KnowledgeNode } from "@/data/kg-mock"
 
@@ -65,11 +65,31 @@ export function ForceGraph({
   const localNodesRef = useRef<SimNode[]>([])
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [_viewState, setViewState] = useState<ViewState>({
     zoom: 1,
     panX: 0,
     panY: 0,
   })
+
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {})
+    } else {
+      document.exitFullscreen().catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange)
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange)
+  }, [])
 
   const preparedNodes = useMemo<SimNode[]>(
     () =>
@@ -357,7 +377,10 @@ export function ForceGraph({
   }
 
   return (
-    <div ref={wrapperRef} className="relative h-full min-h-[600px] w-full">
+    <div
+      ref={wrapperRef}
+      className={`relative h-full min-h-[600px] w-full ${isFullscreen ? "bg-[#020817]" : ""}`}
+    >
       <svg ref={svgRef} aria-label="知识图谱力导向子图" role="img" />
       {tooltip ? (
         <div
@@ -375,6 +398,21 @@ export function ForceGraph({
           </div>
         </div>
       ) : null}
+
+      <div className="absolute bottom-4 left-4 z-20 rounded-[22px] border border-white/10 bg-[#020817]/88 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.4)] backdrop-blur">
+        <button
+          aria-label={isFullscreen ? "退出全屏" : "全屏查看"}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]"
+          onClick={toggleFullscreen}
+          type="button"
+        >
+          {isFullscreen ? (
+            <Minimize className="h-4 w-4" />
+          ) : (
+            <Maximize className="h-4 w-4" />
+          )}
+        </button>
+      </div>
 
       <div className="absolute bottom-4 right-4 z-20 flex gap-2 rounded-[22px] border border-white/10 bg-[#020817]/88 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.4)] backdrop-blur">
         <button
