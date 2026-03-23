@@ -114,24 +114,10 @@ export function KnowledgeWorkbench() {
     <section className="relative overflow-hidden bg-[#050816] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(124,58,237,0.18),transparent_24%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.1),transparent_30%)]" />
       <div className="container relative px-4 py-6 lg:px-6 lg:py-8">
-        <div className="mb-6 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Badge className="rounded-full border-0 bg-cyan-400/14 px-3 py-1 text-cyan-300 hover:bg-cyan-400/14">
-              知识图谱工作台
-            </Badge>
-            <Badge
-              variant="outline"
-              className="rounded-full border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300"
-            >
-              原始文本 / 实体信息 / 子图联动
-            </Badge>
-          </div>
+        <div className="mb-6">
           <h1 className="text-3xl font-semibold tracking-tight text-white">
             轨道病害图谱工作台
           </h1>
-          <p className="max-w-3xl text-sm leading-7 text-slate-400">
-            主页只保留概览卡片，这里聚焦实际研判工作。源文档、文档内容、图谱子图和结构化详情全部在同一页面联动查看。
-          </p>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-12">
@@ -265,9 +251,6 @@ export function KnowledgeWorkbench() {
                   <CardTitle className="text-2xl text-white">
                     轨道病害关联子图
                   </CardTitle>
-                  <CardDescription className="max-w-2xl text-slate-400">
-                    图谱区域单独占满一整行，作为工作台的视觉中心。支持悬停提示、点击详情、拖拽节点，以及右下角的放大缩小控制。
-                  </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {Object.values(nodeTypeMeta).map((meta) => (

@@ -155,13 +155,14 @@ export function ForceGraph({
       .scaleExtent([0.7, 1.8])
       .on("zoom", (event) => {
         canvas.attr("transform", event.transform.toString())
-        const nextState = {
+        viewStateRef.current = {
           zoom: Number(event.transform.k.toFixed(2)),
           panX: clampPan((event.transform.x / width) * 100),
           panY: clampPan((event.transform.y / height) * 100),
         }
-        viewStateRef.current = nextState
-        setViewState(nextState)
+      })
+      .on("end", () => {
+        setViewState({ ...viewStateRef.current })
       })
 
     zoomBehaviorRef.current = zoomBehavior

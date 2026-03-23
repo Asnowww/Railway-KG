@@ -20,18 +20,6 @@ export function Footer() {
           </a>
           .
         </p>
-        <p className="text-xs text-muted-foreground md:text-sm">
-          Designed & Developed by{" "}
-          <a
-            href="https://github.com/Qualiora"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "link" }), "inline p-0")}
-          >
-            Qualiora
-          </a>
-          .
-        </p>
       </div>
     </footer>
   )
