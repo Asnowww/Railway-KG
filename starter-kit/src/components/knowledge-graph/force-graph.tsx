@@ -65,7 +65,7 @@ export function ForceGraph({
   const localNodesRef = useRef<SimNode[]>([])
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
-  const [viewState, setViewState] = useState<ViewState>({
+  const [_viewState, setViewState] = useState<ViewState>({
     zoom: 1,
     panX: 0,
     panY: 0,
@@ -380,7 +380,9 @@ export function ForceGraph({
         <button
           aria-label="放大图谱"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]"
-          onClick={() => updateViewState({ zoom: viewState.zoom + 0.1 })}
+          onClick={() =>
+            updateViewState({ zoom: viewStateRef.current.zoom + 0.1 })
+          }
           type="button"
         >
           <ZoomIn className="h-4 w-4" />
@@ -388,7 +390,9 @@ export function ForceGraph({
         <button
           aria-label="缩小图谱"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]"
-          onClick={() => updateViewState({ zoom: viewState.zoom - 0.1 })}
+          onClick={() =>
+            updateViewState({ zoom: viewStateRef.current.zoom - 0.1 })
+          }
           type="button"
         >
           <ZoomOut className="h-4 w-4" />
