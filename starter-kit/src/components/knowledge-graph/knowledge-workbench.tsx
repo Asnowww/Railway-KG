@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import {
   ArrowRight,
   DatabaseZap,
   FileSearch,
+  Search,
   ShieldAlert,
   Sparkles,
 } from "lucide-react"
@@ -52,6 +53,26 @@ export function KnowledgeWorkbench() {
   )
   const [selectedNodeId, setSelectedNodeId] = useState(knowledgeNodes[0].id)
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
+  const [graphSearch, setGraphSearch] = useState("")
+  const [graphSearchOpen, setGraphSearchOpen] = useState(false)
+  const graphSearchRef = useRef<HTMLInputElement>(null)
+
+  const graphSearchResults = useMemo(
+    () =>
+      graphSearch.trim()
+        ? knowledgeNodes.filter(
+            (node) =>
+              node.label.includes(graphSearch.trim()) ||
+              nodeTypeMeta[node.type].label.includes(graphSearch.trim())
+          )
+        : [],
+    [graphSearch]
+  )
+
+  const handleSelectNode = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId)
+    setSelectedLinkId(null)
+  }, [])
 
   const activeDocument = useMemo(
     () =>
@@ -249,13 +270,97 @@ export function KnowledgeWorkbench() {
               </div>
             </CardHeader>
             <CardContent className="relative flex-1 p-0">
-              <div className="pointer-events-none absolute inset-x-5 top-5 z-10 flex flex-wrap gap-2">
-                <FloatingBadge label="当前文档" value={activeDocument.title} />
-                <FloatingBadge
-                  label="当前选择"
-                  value={selectedLink ? "关系详情" : selectedNode.label}
-                />
-                <FloatingBadge label="交互模式" value="拖拽 / 缩放 / 点击" />
+              <div className="pointer-events-none absolute inset-x-5 top-5 z-10 flex flex-wrap items-start justify-between gap-2">
+                <div className="pointer-events-auto flex flex-wrap gap-2">
+                  <FloatingBadge
+                    label="当前文档"
+                    value={activeDocument.title}
+                  />
+                  <FloatingBadge
+                    label="当前选择"
+                    value={selectedLink ? "关系详情" : selectedNode.label}
+                  />
+                  <FloatingBadge label="交互模式" value="拖拽 / 缩放 / 点击" />
+                </div>
+                <div className="pointer-events-auto relative">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 rounded-full border border-white/10 bg-black/35 backdrop-blur transition-all",
+                      graphSearchOpen ? "w-56 px-3 py-2" : "w-auto px-3 py-2"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="shrink-0 text-slate-400 transition hover:text-white"
+                      onClick={() => {
+                        setGraphSearchOpen((open) => !open)
+                        if (!graphSearchOpen) {
+                          setTimeout(() => graphSearchRef.current?.focus(), 60)
+                        } else {
+                          setGraphSearch("")
+                        }
+                      }}
+                    >
+                      <Search className="h-4 w-4" />
+                    </button>
+                    {graphSearchOpen && (
+                      <input
+                        ref={graphSearchRef}
+                        type="text"
+                        placeholder="搜索实体..."
+                        value={graphSearch}
+                        onChange={(event) => setGraphSearch(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            setGraphSearch("")
+                            setGraphSearchOpen(false)
+                          }
+                          if (
+                            event.key === "Enter" &&
+                            graphSearchResults.length > 0
+                          ) {
+                            setSelectedNodeId(graphSearchResults[0].id)
+                            setSelectedLinkId(null)
+                            setGraphSearch("")
+                            setGraphSearchOpen(false)
+                          }
+                        }}
+                        className="w-full bg-transparent text-xs text-white placeholder:text-slate-500 focus:outline-none"
+                      />
+                    )}
+                  </div>
+                  {graphSearchOpen && graphSearchResults.length > 0 && (
+                    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#020817]/94 shadow-[0_24px_50px_rgba(0,0,0,0.42)] backdrop-blur">
+                      {graphSearchResults.map((node) => {
+                        const meta = nodeTypeMeta[node.type]
+                        return (
+                          <button
+                            key={node.id}
+                            type="button"
+                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-white/[0.06]"
+                            onClick={() => {
+                              setSelectedNodeId(node.id)
+                              setSelectedLinkId(null)
+                              setGraphSearch("")
+                              setGraphSearchOpen(false)
+                            }}
+                          >
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: meta.color }}
+                            />
+                            <span className="truncate text-xs font-medium text-white">
+                              {node.label}
+                            </span>
+                            <span className="ml-auto text-[10px] text-slate-500">
+                              {meta.label}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.46),rgba(2,6,23,0.82))]" />
               <div className="absolute inset-0 px-3 pb-3 pt-14 sm:px-4">
@@ -263,10 +368,7 @@ export function KnowledgeWorkbench() {
                   selectedLinkId={selectedLinkId}
                   selectedNodeId={selectedNodeId}
                   onSelectLink={setSelectedLinkId}
-                  onSelectNode={(nodeId) => {
-                    setSelectedNodeId(nodeId)
-                    setSelectedLinkId(null)
-                  }}
+                  onSelectNode={handleSelectNode}
                 />
               </div>
             </CardContent>
