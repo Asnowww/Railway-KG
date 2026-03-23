@@ -58,6 +58,20 @@ for (const link of knowledgeLinks) {
 
 const nodeIdToLabel = new Map(knowledgeNodes.map((n) => [n.id, n.label]))
 
+// pre-sorted nodes by degree descending
+const nodesSortedByDegree = [...knowledgeNodes].sort(
+  (a, b) => (globalDegreeMap.get(b.id) ?? 0) - (globalDegreeMap.get(a.id) ?? 0)
+)
+
+// pre-built adjacency: nodeId → links[]
+const nodeLinksMap = new Map<string, typeof knowledgeLinks>()
+for (const link of knowledgeLinks) {
+  if (!nodeLinksMap.has(link.source)) nodeLinksMap.set(link.source, [])
+  if (!nodeLinksMap.has(link.target)) nodeLinksMap.set(link.target, [])
+  nodeLinksMap.get(link.source)!.push(link)
+  nodeLinksMap.get(link.target)!.push(link)
+}
+
 export function KnowledgeWorkbench() {
   const [activeDocumentId, setActiveDocumentId] = useState(
     knowledgeDocuments[0].id
@@ -187,7 +201,15 @@ export function KnowledgeWorkbench() {
 
   /* ── search result click → ensure visible + focus ── */
   const handleSearchSelect = useCallback((nodeId: string) => {
-    setExpandedNodeIds((prev) => new Set([...prev, nodeId]))
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev)
+      next.add(nodeId)
+      for (const link of knowledgeLinks) {
+        if (link.source === nodeId) next.add(link.target)
+        if (link.target === nodeId) next.add(link.source)
+      }
+      return next
+    })
     setSelectedNodeId(nodeId)
     setSelectedLinkId(null)
     setFocusNodeId(null)
@@ -511,7 +533,7 @@ export function KnowledgeWorkbench() {
             <CardContent className="min-h-0 flex-1 p-3">
               <ScrollArea className="h-full pr-1">
                 <div className="space-y-2">
-                  {visibleNodes.slice(0, 200).map((node) => {
+                  {nodesSortedByDegree.map((node) => {
                     const meta = nodeTypeMeta[node.type]
                     if (!meta) return null
                     const isSelected = node.id === selectedNode.id
@@ -526,6 +548,15 @@ export function KnowledgeWorkbench() {
                             : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
                         )}
                         onClick={() => {
+                          setExpandedNodeIds((prev) => {
+                            const next = new Set(prev)
+                            next.add(node.id)
+                            for (const link of knowledgeLinks) {
+                              if (link.source === node.id) next.add(link.target)
+                              if (link.target === node.id) next.add(link.source)
+                            }
+                            return next
+                          })
                           setSelectedNodeId(node.id)
                           setSelectedLinkId(null)
                           setFocusNodeId(null)
@@ -680,17 +711,12 @@ export function KnowledgeWorkbench() {
 
                     <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
                       <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                        关联关系
+                        关联关系 (
+                        {(nodeLinksMap.get(selectedNode.id) ?? []).length})
                       </div>
                       <div className="mt-4 space-y-3">
-                        {knowledgeLinks
-                          .filter(
-                            (link) =>
-                              link.source === selectedNode.id ||
-                              link.target === selectedNode.id
-                          )
-                          .slice(0, 5)
-                          .map((link) => (
+                        {(nodeLinksMap.get(selectedNode.id) ?? []).map(
+                          (link) => (
                             <button
                               key={link.id}
                               className="w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
@@ -705,7 +731,8 @@ export function KnowledgeWorkbench() {
                                 {labelForNode(link.target)}
                               </div>
                             </button>
-                          ))}
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
