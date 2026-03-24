@@ -241,15 +241,17 @@ export function KnowledgeWorkbench() {
               "flex h-[520px] flex-col xl:col-span-4"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-4">
+            <CardHeader className="border-b border-border/40 dark:border-white/8 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg text-white">源文档</CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardTitle className="text-lg text-foreground">
+                    源文档
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
                     保留可点击的文档列表。
                   </CardDescription>
                 </div>
-                <FileSearch className="h-5 w-5 text-cyan-300" />
+                <FileSearch className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
               </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 p-3">
@@ -263,23 +265,23 @@ export function KnowledgeWorkbench() {
                         className={cn(
                           "w-full rounded-2xl border px-4 py-3 text-left transition-all",
                           isActive
-                            ? "border-cyan-400/30 bg-cyan-400/10 shadow-[0_14px_30px_rgba(34,211,238,0.08)]"
-                            : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
+                            ? "border-cyan-500/30 bg-cyan-50 shadow-sm dark:bg-cyan-400/10 dark:shadow-[0_14px_30px_rgba(34,211,238,0.08)]"
+                            : "border-border/40 bg-muted/30 hover:border-border/60 hover:bg-muted/50 dark:border-white/8 dark:bg-white/[0.03] dark:hover:border-white/14 dark:hover:bg-white/[0.05]"
                         )}
                         onClick={() => setActiveDocumentId(document.id)}
                         type="button"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <div className="font-medium text-white">
+                            <div className="font-medium text-foreground">
                               {document.title}
                             </div>
-                            <div className="text-xs text-slate-400">
+                            <div className="text-xs text-muted-foreground">
                               {document.source} / {document.updatedAt}
                             </div>
                           </div>
                           {document.confidence != null && (
-                            <div className="rounded-full bg-white/10 px-2 py-1 text-xs font-medium text-slate-200">
+                            <div className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground dark:bg-white/10">
                               {(document.confidence * 100).toFixed(0)}%
                             </div>
                           )}
@@ -299,11 +301,13 @@ export function KnowledgeWorkbench() {
               "flex h-[520px] flex-col xl:col-span-8"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-3">
+            <CardHeader className="border-b border-border/40 dark:border-white/8 pb-3">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <CardTitle className="text-lg text-white">文档内容</CardTitle>
-                  <CardDescription className="mt-0.5 text-slate-400">
+                  <CardTitle className="text-lg text-foreground">
+                    文档内容
+                  </CardTitle>
+                  <CardDescription className="mt-0.5 text-muted-foreground">
                     {activeDocument.summary}
                   </CardDescription>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -311,14 +315,14 @@ export function KnowledgeWorkbench() {
                       <Badge
                         key={tag}
                         variant="outline"
-                        className="rounded-full border-white/10 bg-white/[0.04] text-[11px] text-slate-400"
+                        className="rounded-full border-border/40 bg-muted/50 text-[11px] text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
                       >
                         {tag}
                       </Badge>
                     ))}
                   </div>
                 </div>
-                <Sparkles className="h-5 w-5 shrink-0 text-cyan-300" />
+                <Sparkles className="h-5 w-5 shrink-0 text-cyan-600 dark:text-cyan-300" />
               </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 p-0">
@@ -326,8 +330,8 @@ export function KnowledgeWorkbench() {
                 <PdfViewer url={activeDocument.pdfUrl} />
               ) : (
                 <ScrollArea className="h-full p-4">
-                  <div className="rounded-[20px] border border-white/8 bg-[#030712]/70 px-4 py-3">
-                    <div className="space-y-4 text-sm leading-7 text-slate-300">
+                  <div className="rounded-[20px] border border-border/40 bg-muted/20 px-4 py-3 dark:border-white/8 dark:bg-[#030712]/70">
+                    <div className="space-y-4 text-sm leading-7 text-foreground/80 dark:text-slate-300">
                       {activeDocument.text.split("\n\n").map((paragraph) => (
                         <p key={paragraph.slice(0, 24)}>
                           <HighlightedText
@@ -360,21 +364,21 @@ export function KnowledgeWorkbench() {
               "flex h-[720px] flex-col xl:col-span-12"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-4">
+            <CardHeader className="border-b border-border/40 dark:border-white/8 pb-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
-                  <div className="text-sm text-slate-400">
+                  <div className="text-sm text-muted-foreground">
                     D3 力导向子图 · 显示{" "}
-                    <span className="font-semibold text-cyan-300">
+                    <span className="font-semibold text-cyan-600 dark:text-cyan-300">
                       {visibleNodes.length}
                     </span>{" "}
                     / {knowledgeNodes.length} 节点 ·{" "}
-                    <span className="font-semibold text-cyan-300">
+                    <span className="font-semibold text-cyan-600 dark:text-cyan-300">
                       {visibleLinks.length}
                     </span>{" "}
                     / {knowledgeLinks.length} 边
                   </div>
-                  <CardTitle className="text-2xl text-white">
+                  <CardTitle className="text-2xl text-foreground">
                     轨道病害关联子图
                   </CardTitle>
                 </div>
@@ -396,8 +400,8 @@ export function KnowledgeWorkbench() {
                           className={cn(
                             "rounded-full border px-3 py-1 text-xs font-medium transition",
                             isOn
-                              ? "border-white/20 text-white"
-                              : "border-white/5 text-slate-600 opacity-40"
+                              ? "border-foreground/20 text-foreground dark:border-white/20"
+                              : "border-border/30 text-muted-foreground opacity-40 dark:border-white/5"
                           )}
                           style={{
                             backgroundColor: isOn ? meta.tint : "transparent",
@@ -408,7 +412,7 @@ export function KnowledgeWorkbench() {
                       )
                     })}
                   </div>
-                  <div className="text-right text-[11px] text-slate-500">
+                  <div className="text-right text-[11px] text-muted-foreground">
                     点击上方标签可开关对应实体类型的显示
                   </div>
                 </div>
@@ -429,13 +433,13 @@ export function KnowledgeWorkbench() {
                 <div className="pointer-events-auto relative">
                   <div
                     className={cn(
-                      "flex items-center gap-2 rounded-full border border-white/10 bg-black/35 backdrop-blur transition-all",
+                      "flex items-center gap-2 rounded-full border border-border/40 bg-white/80 backdrop-blur transition-all dark:border-white/10 dark:bg-black/35",
                       graphSearchOpen ? "w-56 px-3 py-2" : "w-auto px-3 py-2"
                     )}
                   >
                     <button
                       type="button"
-                      className="shrink-0 text-slate-400 transition hover:text-white"
+                      className="shrink-0 text-muted-foreground transition hover:text-foreground"
                       onClick={() => {
                         setGraphSearchOpen((open) => !open)
                         if (!graphSearchOpen) {
@@ -466,29 +470,29 @@ export function KnowledgeWorkbench() {
                             handleSearchSelect(graphSearchResults[0].id)
                           }
                         }}
-                        className="w-full bg-transparent text-xs text-white placeholder:text-slate-500 focus:outline-none"
+                        className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
                       />
                     )}
                   </div>
                   {graphSearchOpen && graphSearchResults.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#020817]/94 shadow-[0_24px_50px_rgba(0,0,0,0.42)] backdrop-blur">
+                    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-border/40 bg-card/95 shadow-lg backdrop-blur dark:border-white/10 dark:bg-[#020817]/94 dark:shadow-[0_24px_50px_rgba(0,0,0,0.42)]">
                       {graphSearchResults.map((node) => {
                         const meta = nodeTypeMeta[node.type]
                         return (
                           <button
                             key={node.id}
                             type="button"
-                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-white/[0.06]"
+                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-muted/60 dark:hover:bg-white/[0.06]"
                             onClick={() => handleSearchSelect(node.id)}
                           >
                             <span
                               className="h-2 w-2 shrink-0 rounded-full"
                               style={{ backgroundColor: meta?.color }}
                             />
-                            <span className="truncate text-xs font-medium text-white">
+                            <span className="truncate text-xs font-medium text-foreground">
                               {node.label}
                             </span>
-                            <span className="ml-auto text-[10px] text-slate-500">
+                            <span className="ml-auto text-[10px] text-muted-foreground">
                               {meta?.label}
                             </span>
                           </button>
@@ -498,7 +502,7 @@ export function KnowledgeWorkbench() {
                   )}
                 </div>
               </div>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.46),rgba(2,6,23,0.82))]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.04),transparent_30%),linear-gradient(180deg,rgba(241,245,249,0.5),rgba(248,250,252,0.7))] dark:bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.46),rgba(2,6,23,0.82))]" />
               <div className="absolute inset-0 px-3 pb-0 pt-14 sm:px-4">
                 <ForceGraph
                   nodes={visibleNodes}
@@ -522,15 +526,17 @@ export function KnowledgeWorkbench() {
               "flex h-[420px] flex-col xl:col-span-3"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-4">
+            <CardHeader className="border-b border-border/40 dark:border-white/8 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg text-white">实体浏览</CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardTitle className="text-lg text-foreground">
+                    实体浏览
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
                     当前可见实体，点击联动详情与图谱。
                   </CardDescription>
                 </div>
-                <DatabaseZap className="h-5 w-5 text-violet-300" />
+                <DatabaseZap className="h-5 w-5 text-violet-600 dark:text-violet-300" />
               </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 p-3">
@@ -547,8 +553,8 @@ export function KnowledgeWorkbench() {
                         className={cn(
                           "flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-left transition-all",
                           isSelected
-                            ? "border-cyan-400/26 bg-cyan-400/10"
-                            : "border-white/8 bg-white/[0.03] hover:border-white/14 hover:bg-white/[0.05]"
+                            ? "border-cyan-500/30 bg-cyan-50 dark:border-cyan-400/26 dark:bg-cyan-400/10"
+                            : "border-border/40 bg-muted/30 hover:border-border/60 hover:bg-muted/50 dark:border-white/8 dark:bg-white/[0.03] dark:hover:border-white/14 dark:hover:bg-white/[0.05]"
                         )}
                         onClick={() => {
                           setExpandedNodeIds((prev) => {
@@ -573,10 +579,10 @@ export function KnowledgeWorkbench() {
                             style={{ backgroundColor: meta.color }}
                           />
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-white">
+                            <div className="truncate text-sm font-medium text-foreground">
                               {node.label}
                             </div>
-                            <div className="truncate text-xs text-slate-400">
+                            <div className="truncate text-xs text-muted-foreground">
                               {meta.label} · 度{" "}
                               {globalDegreeMap.get(node.id) ?? 0}
                             </div>
@@ -597,43 +603,43 @@ export function KnowledgeWorkbench() {
               "flex h-[420px] flex-col xl:col-span-5"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-4">
+            <CardHeader className="border-b border-border/40 dark:border-white/8 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg text-white">
+                  <CardTitle className="text-lg text-foreground">
                     {selectedLink ? "关系详情" : "实体详情"}
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-muted-foreground">
                     {selectedLink
                       ? "显示当前关系的证据。"
                       : "显示当前节点的关联关系。"}
                   </CardDescription>
                 </div>
-                <ShieldAlert className="h-5 w-5 text-amber-300" />
+                <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-300" />
               </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 p-4">
               <ScrollArea className="h-full pr-1">
                 {selectedLink ? (
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px]">
-                    <div className="rounded-[24px] border border-amber-300/12 bg-amber-300/8 p-5">
+                    <div className="rounded-[24px] border border-amber-400/20 bg-amber-50/60 dark:border-amber-300/12 dark:bg-amber-300/8 p-5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge className="rounded-full border-0 bg-amber-300/18 text-amber-200 hover:bg-amber-300/18">
+                        <Badge className="rounded-full border-0 bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-300/18 dark:text-amber-200 dark:hover:bg-amber-300/18">
                           当前选中关系边
                         </Badge>
                       </div>
-                      <div className="mt-4 text-2xl font-semibold text-white">
+                      <div className="mt-4 text-2xl font-semibold text-foreground">
                         {labelForNode(selectedLink.source)}{" "}
                         {selectedLink.relation}{" "}
                         {labelForNode(selectedLink.target)}
                       </div>
                       {selectedLink.evidence && (
-                        <p className="mt-4 text-sm leading-7 text-slate-300">
+                        <p className="mt-4 text-sm leading-7 text-muted-foreground">
                           {selectedLink.evidence}
                         </p>
                       )}
                     </div>
-                    <div className="flex flex-col justify-between rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="flex flex-col justify-between rounded-[24px] border border-border/40 bg-muted/30 p-4 dark:border-white/8 dark:bg-white/[0.03]">
                       <div className="space-y-4">
                         <DetailMetric
                           label="源节点"
@@ -649,7 +655,7 @@ export function KnowledgeWorkbench() {
                         />
                       </div>
                       <button
-                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/50 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/80 dark:border-white/10 dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
                         onClick={() => {
                           setSelectedNodeId(selectedLink.source)
                           setSelectedLinkId(null)
@@ -664,7 +670,7 @@ export function KnowledgeWorkbench() {
                 ) : (
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                     <div className="space-y-4">
-                      <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                      <div className="rounded-[24px] border border-border/40 bg-muted/30 p-5 dark:border-white/8 dark:bg-white/[0.03]">
                         <div className="flex flex-wrap items-center gap-2">
                           {nodeTypeMeta[selectedNode.type] && (
                             <span
@@ -678,15 +684,15 @@ export function KnowledgeWorkbench() {
                               {nodeTypeMeta[selectedNode.type].label}
                             </span>
                           )}
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-muted-foreground">
                             度 {globalDegreeMap.get(selectedNode.id) ?? 0}
                           </span>
                         </div>
-                        <div className="mt-4 text-2xl font-semibold text-white">
+                        <div className="mt-4 text-2xl font-semibold text-foreground">
                           {selectedNode.label}
                         </div>
                         {selectedNode.summary && (
-                          <p className="mt-3 text-sm leading-7 text-slate-300">
+                          <p className="mt-3 text-sm leading-7 text-muted-foreground">
                             {selectedNode.summary}
                           </p>
                         )}
@@ -698,12 +704,12 @@ export function KnowledgeWorkbench() {
                             {selectedNode.properties.map((property) => (
                               <div
                                 key={property.label}
-                                className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
+                                className="rounded-[20px] border border-border/40 bg-muted/30 p-4 dark:border-white/8 dark:bg-white/[0.03]"
                               >
-                                <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                                   {property.label}
                                 </div>
-                                <div className="mt-2 text-sm font-medium text-slate-200">
+                                <div className="mt-2 text-sm font-medium text-foreground">
                                   {property.value}
                                 </div>
                               </div>
@@ -712,8 +718,8 @@ export function KnowledgeWorkbench() {
                         )}
                     </div>
 
-                    <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                    <div className="rounded-[24px] border border-border/40 bg-muted/30 p-4 dark:border-white/8 dark:bg-white/[0.03]">
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                         关联关系 (
                         {(nodeLinksMap.get(selectedNode.id) ?? []).length})
                       </div>
@@ -722,14 +728,14 @@ export function KnowledgeWorkbench() {
                           (link) => (
                             <button
                               key={link.id}
-                              className="w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
+                              className="w-full rounded-2xl border border-border/40 bg-muted/30 px-3 py-3 text-left transition hover:border-border/60 hover:bg-muted/50 dark:border-white/8 dark:bg-black/20 dark:hover:border-white/14 dark:hover:bg-white/[0.04]"
                               onClick={() => setSelectedLinkId(link.id)}
                               type="button"
                             >
-                              <div className="text-sm font-medium text-white">
+                              <div className="text-sm font-medium text-foreground">
                                 {link.relation}
                               </div>
-                              <div className="mt-1 text-xs text-slate-400">
+                              <div className="mt-1 text-xs text-muted-foreground">
                                 {labelForNode(link.source)} →{" "}
                                 {labelForNode(link.target)}
                               </div>
@@ -751,22 +757,24 @@ export function KnowledgeWorkbench() {
               "flex h-[420px] flex-col xl:col-span-4"
             )}
           >
-            <CardHeader className="border-b border-white/8 pb-4">
+            <CardHeader className="border-b border-border/40 dark:border-white/8 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg text-white">图谱快照</CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardTitle className="text-lg text-foreground">
+                    图谱快照
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
                     实体分布与证据链入口。
                   </CardDescription>
                 </div>
-                <Sparkles className="h-5 w-5 text-cyan-300" />
+                <Sparkles className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
               </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 p-4">
               <ScrollArea className="h-full pr-1">
                 <div className="space-y-4">
-                  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                  <div className="rounded-[24px] border border-border/40 bg-muted/30 p-4 dark:border-white/8 dark:bg-white/[0.03]">
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                       全量实体类型占比
                     </div>
                     <div className="mt-4 space-y-3">
@@ -790,22 +798,22 @@ export function KnowledgeWorkbench() {
                     </div>
                   </div>
 
-                  <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                  <div className="rounded-[24px] border border-border/40 bg-muted/30 p-4 dark:border-white/8 dark:bg-white/[0.03]">
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                       证据链
                     </div>
                     <div className="mt-3 space-y-3">
                       {highlightedRelations.map((link) => (
                         <button
                           key={link.id}
-                          className="block w-full rounded-2xl border border-white/8 bg-black/20 px-3 py-3 text-left transition hover:border-white/14 hover:bg-white/[0.04]"
+                          className="block w-full rounded-2xl border border-border/40 bg-muted/30 px-3 py-3 text-left transition hover:border-border/60 hover:bg-muted/50 dark:border-white/8 dark:bg-black/20 dark:hover:border-white/14 dark:hover:bg-white/[0.04]"
                           onClick={() => setSelectedLinkId(link.id)}
                           type="button"
                         >
-                          <div className="text-sm font-medium text-white">
+                          <div className="text-sm font-medium text-foreground">
                             {link.relation}
                           </div>
-                          <div className="mt-1 text-xs text-slate-400">
+                          <div className="mt-1 text-xs text-muted-foreground">
                             {labelForNode(link.source)} {"→"}{" "}
                             {labelForNode(link.target)}
                           </div>
@@ -832,10 +840,10 @@ function labelForNode(nodeId: string) {
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
+      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-2 text-sm font-medium text-slate-200">{value}</div>
+      <div className="mt-2 text-sm font-medium text-foreground">{value}</div>
     </div>
   )
 }
@@ -854,10 +862,12 @@ function ProgressRow({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-slate-300">{label}</span>
-        <span className="text-slate-500">{value}</span>
+        <span className="font-medium text-foreground/80 dark:text-slate-300">
+          {label}
+        </span>
+        <span className="text-muted-foreground">{value}</span>
       </div>
-      <div className="h-2 rounded-full bg-white/[0.06]">
+      <div className="h-2 rounded-full bg-muted dark:bg-white/[0.06]">
         <div
           className="h-2 rounded-full"
           style={{ width: `${percentage}%`, backgroundColor: color }}
@@ -869,9 +879,9 @@ function ProgressRow({
 
 function FloatingBadge({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-full border border-white/10 bg-black/35 px-3 py-2 text-xs backdrop-blur">
-      <span className="text-slate-500">{label}</span>
-      <span className="ml-2 font-medium text-slate-200">{value}</span>
+    <div className="rounded-full border border-border/40 bg-white/80 px-3 py-2 text-xs backdrop-blur dark:border-white/10 dark:bg-black/35">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="ml-2 font-medium text-foreground">{value}</span>
     </div>
   )
 }

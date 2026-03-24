@@ -106,14 +106,14 @@ export default function PdfViewer({ url }: PdfViewerProps) {
   const rangeEnd = Math.min(numPages, currentPage + BUFFER)
 
   const btnCls =
-    "flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-slate-300 transition hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:hover:bg-white/10"
+    "flex h-7 w-7 items-center justify-center rounded-md bg-muted text-muted-foreground transition hover:bg-muted/80 hover:text-foreground disabled:opacity-30 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20 dark:hover:text-white dark:disabled:hover:bg-white/10"
 
   const gap = 16
 
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-white/8 px-3 py-1.5">
+      <div className="flex items-center justify-between border-b border-border/40 px-3 py-1.5 dark:border-white/8">
         <div className="flex items-center gap-1">
           <button
             className={btnCls}
@@ -122,7 +122,7 @@ export default function PdfViewer({ url }: PdfViewerProps) {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-xs tabular-nums text-slate-400">
+          <span className="text-xs tabular-nums text-muted-foreground">
             {currentPage} / {numPages || "-"}
           </span>
           <button
@@ -140,7 +140,7 @@ export default function PdfViewer({ url }: PdfViewerProps) {
               onChange={(e) => setJumpInput(e.target.value.replace(/\D/g, ""))}
               onBlur={handleJumpSubmit}
               placeholder="跳转"
-              className="h-6 w-12 rounded border border-white/10 bg-white/5 px-1.5 text-center text-[11px] text-slate-300 outline-none placeholder:text-slate-600 focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30"
+              className="h-6 w-12 rounded border border-border/40 bg-muted/50 px-1.5 text-center text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:placeholder:text-slate-600"
             />
           </form>
         </div>
@@ -166,7 +166,7 @@ export default function PdfViewer({ url }: PdfViewerProps) {
       {/* PDF Content — virtualized continuous scroll */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto bg-[#1a1a2e]/60"
+        className="flex-1 overflow-auto bg-muted/40 dark:bg-[#1a1a2e]/60"
         style={{ minHeight: 0 }}
       >
         <Document
@@ -175,16 +175,18 @@ export default function PdfViewer({ url }: PdfViewerProps) {
           onLoadError={(err) => console.error("[PdfViewer] load error:", err)}
           loading={
             <div className="flex h-full items-center justify-center py-20">
-              <RotateCw className="h-5 w-5 animate-spin text-slate-500" />
-              <span className="ml-2 text-xs text-slate-500">加载中...</span>
+              <RotateCw className="h-5 w-5 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-xs text-muted-foreground">
+                加载中...
+              </span>
             </div>
           }
           error={
             <div className="flex h-full flex-col items-center justify-center gap-2 py-20">
-              <span className="text-sm text-red-400">PDF 加载失败</span>
+              <span className="text-sm text-destructive">PDF 加载失败</span>
               <button
                 onClick={() => window.location.reload()}
-                className="rounded bg-white/10 px-3 py-1 text-xs text-slate-300 hover:bg-white/20"
+                className="rounded bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-muted/80 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20"
               >
                 点击重试
               </button>

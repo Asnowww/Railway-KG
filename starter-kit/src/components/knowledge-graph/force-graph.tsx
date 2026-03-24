@@ -101,6 +101,19 @@ export function ForceGraph({
   const highlightSetRef = useRef<Set<string>>(new Set())
   const selectedNodeRef = useRef(selectedNodeId)
   const selectedLinkRef = useRef(selectedLinkId)
+  const isDarkRef = useRef(true)
+
+  // Track dark mode class on <html>
+  useEffect(() => {
+    const html = document.documentElement
+    const update = () => {
+      isDarkRef.current = html.classList.contains("dark")
+    }
+    update()
+    const obs = new MutationObserver(update)
+    obs.observe(html, { attributes: true, attributeFilter: ["class"] })
+    return () => obs.disconnect()
+  }, [])
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
@@ -170,6 +183,13 @@ export function ForceGraph({
     const hl = highlightSetRef.current
     const hasHighlight = hl.size > 0
 
+    // theme-aware colors
+    const dark = isDarkRef.current
+    const linkLabelBg = dark ? "rgba(2,8,23,0.75)" : "rgba(255,255,255,0.88)"
+    const linkLabelFg = dark ? "rgba(203,213,225,0.9)" : "rgba(30,41,59,0.9)"
+    const ringStroke = dark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.15)"
+    const nodeStroke = dark ? "#e2e8f0" : "#475569"
+
     /* ── links ── */
     for (const link of localLinks) {
       const s = link.source as SimNode
@@ -236,12 +256,12 @@ export function ForceGraph({
         // background pill
         const tw = ctx.measureText(link.relation).width + 8
         const th = labelFontSize + 6
-        ctx.fillStyle = "rgba(2,8,23,0.75)"
+        ctx.fillStyle = linkLabelBg
         ctx.beginPath()
         ctx.roundRect(mx - tw / 2, my - th / 2, tw, th, 4)
         ctx.fill()
         // text
-        ctx.fillStyle = "rgba(203,213,225,0.9)"
+        ctx.fillStyle = linkLabelFg
         ctx.fillText(link.relation, mx, my)
       }
 
@@ -266,7 +286,7 @@ export function ForceGraph({
         ctx.arc(node.x, node.y, r + 5, 0, Math.PI * 2)
         ctx.fillStyle = meta.tint
         ctx.fill()
-        ctx.strokeStyle = "rgba(255,255,255,0.35)"
+        ctx.strokeStyle = ringStroke
         ctx.lineWidth = 1.5
         ctx.stroke()
       }
@@ -278,14 +298,14 @@ export function ForceGraph({
       ctx.fill()
 
       if ((isSel || isHov) && isHl && !isLow) {
-        ctx.strokeStyle = "#e2e8f0"
+        ctx.strokeStyle = nodeStroke
         ctx.lineWidth = isSel ? 2 : 1.5
         ctx.stroke()
       }
 
       // text inside circle
       if (showText && isHl) {
-        wrapTextInCircle(ctx, node.label, node.x, node.y, r)
+        wrapTextInCircle(ctx, node.label, node.x, node.y, r, dark)
       }
 
       ctx.globalAlpha = 1
@@ -619,7 +639,7 @@ export function ForceGraph({
   return (
     <div
       ref={wrapperRef}
-      className={`relative h-full min-h-[600px] w-full ${isFullscreen ? "bg-[#020817]" : ""}`}
+      className={`relative h-full min-h-[600px] w-full ${isFullscreen ? "bg-background dark:bg-[#020817]" : ""}`}
     >
       <canvas
         ref={canvasRef}
@@ -629,27 +649,27 @@ export function ForceGraph({
 
       {tooltip ? (
         <div
-          className="pointer-events-none absolute z-20 max-w-64 rounded-2xl border border-white/10 bg-[#020817]/94 px-4 py-3 shadow-[0_24px_50px_rgba(0,0,0,0.42)] backdrop-blur"
+          className="pointer-events-none absolute z-20 max-w-64 rounded-2xl border border-border/40 bg-card/95 px-4 py-3 shadow-lg backdrop-blur dark:border-white/10 dark:bg-[#020817]/94 dark:shadow-[0_24px_50px_rgba(0,0,0,0.42)]"
           style={{ left: tooltip.x, top: tooltip.y }}
         >
-          <div className="text-sm font-semibold text-white">
+          <div className="text-sm font-semibold text-foreground">
             {tooltip.title}
           </div>
-          <div className="mt-1 text-xs font-medium text-cyan-300">
+          <div className="mt-1 text-xs font-medium text-cyan-600 dark:text-cyan-300">
             {tooltip.subtitle}
           </div>
           {tooltip.meta && (
-            <div className="mt-2 text-xs leading-5 text-slate-300">
+            <div className="mt-2 text-xs leading-5 text-muted-foreground">
               {tooltip.meta}
             </div>
           )}
         </div>
       ) : null}
 
-      <div className="absolute bottom-4 left-4 z-20 rounded-[22px] border border-white/10 bg-[#020817]/88 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.4)] backdrop-blur">
+      <div className="absolute bottom-4 left-4 z-20 rounded-[22px] border border-border/40 bg-card/90 p-2 shadow-md backdrop-blur dark:border-white/10 dark:bg-[#020817]/88 dark:shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
         <button
           aria-label={isFullscreen ? "退出全屏" : "全屏查看"}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-muted/50 text-foreground transition hover:bg-muted/80 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1]"
           onClick={toggleFullscreen}
           type="button"
         >
@@ -661,10 +681,10 @@ export function ForceGraph({
         </button>
       </div>
 
-      <div className="absolute bottom-4 right-4 z-20 flex gap-2 rounded-[22px] border border-white/10 bg-[#020817]/88 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.4)] backdrop-blur">
+      <div className="absolute bottom-4 right-4 z-20 flex gap-2 rounded-[22px] border border-border/40 bg-card/90 p-2 shadow-md backdrop-blur dark:border-white/10 dark:bg-[#020817]/88 dark:shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
         <button
           aria-label="放大图谱"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-muted/50 text-foreground transition hover:bg-muted/80 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1]"
           onClick={() =>
             updateViewState({ zoom: viewStateRef.current.zoom * 1.3 })
           }
@@ -674,7 +694,7 @@ export function ForceGraph({
         </button>
         <button
           aria-label="缩小图谱"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-muted/50 text-foreground transition hover:bg-muted/80 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1]"
           onClick={() =>
             updateViewState({ zoom: viewStateRef.current.zoom * 0.7 })
           }
@@ -694,7 +714,8 @@ function wrapTextInCircle(
   text: string,
   x: number,
   y: number,
-  radius: number
+  radius: number,
+  dark = true
 ) {
   const fontSize = Math.max(7, Math.min(12, radius * 0.6))
   ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`
@@ -723,12 +744,12 @@ function wrapTextInCircle(
   const startY = y - ((display.length - 1) * lh) / 2
 
   // shadow
-  ctx.fillStyle = "rgba(0,0,0,0.55)"
+  ctx.fillStyle = dark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.7)"
   for (let i = 0; i < display.length; i++) {
     ctx.fillText(display[i], x + 0.5, startY + i * lh + 0.5)
   }
   // text
-  ctx.fillStyle = "#f1f5f9"
+  ctx.fillStyle = dark ? "#f1f5f9" : "#1e293b"
   for (let i = 0; i < display.length; i++) {
     ctx.fillText(display[i], x, startY + i * lh)
   }
