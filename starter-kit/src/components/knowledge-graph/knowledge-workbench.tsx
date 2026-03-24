@@ -141,6 +141,7 @@ export function KnowledgeWorkbench() {
   /* ── reset handler (double-click empty space) ── */
   const handleResetExpand = useCallback(() => {
     setExpandedNodeIds(new Set())
+    setSelectedLinkId(null)
   }, [])
 
   /* ── search ── */
@@ -190,6 +191,12 @@ export function KnowledgeWorkbench() {
         : null,
     [selectedLinkId]
   )
+
+  /* When a link is selected from the details panel, highlight its two endpoints */
+  const linkHighlightNodes = useMemo<Set<string> | null>(() => {
+    if (!selectedLink) return null
+    return new Set([selectedLink.source, selectedLink.target])
+  }, [selectedLink])
 
   const nodeDistribution = useMemo(
     () =>
@@ -248,7 +255,7 @@ export function KnowledgeWorkbench() {
                     源文档
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    保留可点击的文档列表。
+                    点击查看子图来源文档
                   </CardDescription>
                 </div>
                 <FileSearch className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
@@ -510,6 +517,7 @@ export function KnowledgeWorkbench() {
                   selectedLinkId={selectedLinkId}
                   selectedNodeId={selectedNodeId}
                   focusNodeId={focusNodeId}
+                  highlightNodes={linkHighlightNodes}
                   onSelectLink={setSelectedLinkId}
                   onSelectNode={handleSelectNode}
                   onExpandNode={handleExpandNode}
@@ -729,7 +737,16 @@ export function KnowledgeWorkbench() {
                             <button
                               key={link.id}
                               className="w-full rounded-2xl border border-border/40 bg-muted/30 px-3 py-3 text-left transition hover:border-border/60 hover:bg-muted/50 dark:border-white/8 dark:bg-black/20 dark:hover:border-white/14 dark:hover:bg-white/[0.04]"
-                              onClick={() => setSelectedLinkId(link.id)}
+                              onClick={() => {
+                                setSelectedLinkId(link.id)
+                                // ensure both endpoints are visible in the graph
+                                setExpandedNodeIds((prev) => {
+                                  const next = new Set(prev)
+                                  next.add(link.source)
+                                  next.add(link.target)
+                                  return next
+                                })
+                              }}
                               type="button"
                             >
                               <div className="text-sm font-medium text-foreground">

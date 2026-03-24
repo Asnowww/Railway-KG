@@ -28,6 +28,8 @@ interface ForceGraphProps {
   selectedNodeId: string | null
   selectedLinkId: string | null
   focusNodeId?: string | null
+  /** External highlight override – when set, these node IDs glow and everything else dims */
+  highlightNodes?: Set<string> | null
   onSelectNode: (nodeId: string) => void
   onSelectLink: (linkId: string) => void
   onExpandNode?: (nodeId: string) => void
@@ -80,6 +82,7 @@ export function ForceGraph({
   selectedNodeId,
   selectedLinkId,
   focusNodeId,
+  highlightNodes,
   onSelectNode,
   onSelectLink,
   onExpandNode,
@@ -114,6 +117,15 @@ export function ForceGraph({
     obs.observe(html, { attributes: true, attributeFilter: ["class"] })
     return () => obs.disconnect()
   }, [])
+
+  // Sync external highlightNodes prop → internal highlightSetRef
+  useEffect(() => {
+    if (highlightNodes && highlightNodes.size > 0) {
+      highlightSetRef.current = highlightNodes
+    } else if (highlightNodes === null) {
+      // explicit null = clear external highlight (keep expand highlights untouched)
+    }
+  }, [highlightNodes])
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
