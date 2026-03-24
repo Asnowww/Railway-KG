@@ -38,14 +38,14 @@ const PdfViewer = dynamic(
 )
 
 const panelClassName =
-  "rounded-[28px] border border-white/8 bg-[#0b1120]/92 shadow-[0_22px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+  "rounded-[28px] border border-border/60 bg-card/95 shadow-[0_22px_70px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-white/8 dark:bg-[#0b1120]/92 dark:shadow-[0_22px_70px_rgba(0,0,0,0.34)]"
 
 const ForceGraph = dynamic(
   () => import("./force-graph").then((module) => module.ForceGraph),
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full min-h-[600px] items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-black/20 text-sm text-slate-400">
+      <div className="flex h-full min-h-[600px] items-center justify-center rounded-[24px] border border-dashed border-border/40 bg-muted/40 text-sm text-muted-foreground dark:border-white/10 dark:bg-black/20">
         正在加载图谱画布...
       </div>
     ),
@@ -224,11 +224,11 @@ export function KnowledgeWorkbench() {
   }, [])
 
   return (
-    <section className="relative overflow-hidden bg-[#050816] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(124,58,237,0.18),transparent_24%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.1),transparent_30%)]" />
+    <section className="relative overflow-hidden bg-background text-foreground dark:bg-[#050816]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.06),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(124,58,237,0.06),transparent_24%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.04),transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(124,58,237,0.18),transparent_24%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.1),transparent_30%)]" />
       <div className="container relative px-4 py-6 lg:px-6 lg:py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
             轨道病害图谱工作台
           </h1>
         </div>
