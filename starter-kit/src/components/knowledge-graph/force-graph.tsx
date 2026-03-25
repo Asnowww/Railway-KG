@@ -101,6 +101,8 @@ export function ForceGraph({
   const rafRef = useRef<number>(0)
   const viewStateRef = useRef<ViewState>({ zoom: 1, panX: 0, panY: 0 })
   const hoveredNodeRef = useRef<SimNode | null>(null)
+  const dragNodeRef = useRef<SimNode | null>(null)
+  const isPanningRef = useRef(false)
   const highlightSetRef = useRef<Set<string>>(new Set())
   const selectedNodeRef = useRef(selectedNodeId)
   const selectedLinkRef = useRef(selectedLinkId)
@@ -405,39 +407,31 @@ export function ForceGraph({
     }
     rafRef.current = requestAnimationFrame(tick)
 
-    // zoom
-    const zoomBehavior = d3
-      .zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([0.08, 5])
-      .on("zoom", (event) => {
-        transformRef.current = event.transform
-        viewStateRef.current = {
-          zoom: Number(event.transform.k.toFixed(2)),
-          panX: event.transform.x,
-          panY: event.transform.y,
+    function getPointerPosition(event: MouseEvent | WheelEvent | TouchEvent) {
+      const rect = canvas.getBoundingClientRect()
+      if ("touches" in event && event.touches.length > 0) {
+        return {
+          x: event.touches[0].clientX - rect.left,
+          y: event.touches[0].clientY - rect.top,
         }
-      })
-      .on("end", () => {
-        setViewState({ ...viewStateRef.current })
-      })
-
-    zoomBehaviorRef.current = zoomBehavior
-    const sel = d3.select(canvas)
-    sel.call(zoomBehavior)
-    // disable d3-zoom's default double-click-to-zoom so our dblclick handler works
-    sel.on("dblclick.zoom", null)
-
-    // initial transform
-    const initScale = 0.7
-    sel.call(
-      zoomBehavior.transform,
-      d3.zoomIdentity
-        .translate(
-          width * (1 - initScale) * 0.5,
-          height * (1 - initScale) * 0.5
-        )
-        .scale(initScale)
-    )
+      }
+      if ("changedTouches" in event && event.changedTouches.length > 0) {
+        return {
+          x: event.changedTouches[0].clientX - rect.left,
+          y: event.changedTouches[0].clientY - rect.top,
+        }
+      }
+      if ("clientX" in event && "clientY" in event) {
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        }
+      }
+      return {
+        x: 0,
+        y: 0,
+      }
+    }
 
     /* ── hit testing ── */
     function findNodeAt(mx: number, my: number): SimNode | null {
@@ -469,7 +463,116 @@ export function ForceGraph({
     }
 
     /* ── mouse events ── */
+    const zoomBehavior = d3
+      .zoom<HTMLCanvasElement, unknown>()
+      .filter((event) => {
+        if (event.type === "dblclick") return false
+        if (event.type === "wheel") return !(event as WheelEvent).ctrlKey
+        if ("button" in event && event.button !== 0) return false
+
+        const pointer = getPointerPosition(
+          event as MouseEvent | WheelEvent | TouchEvent
+        )
+        return (
+          !findNodeAt(pointer.x, pointer.y) && !findLinkAt(pointer.x, pointer.y)
+        )
+      })
+      .clickDistance(4)
+      .scaleExtent([0.08, 5])
+      .on("start", (event) => {
+        if (
+          event.sourceEvent?.type === "mousedown" ||
+          event.sourceEvent?.type === "touchstart"
+        ) {
+          isPanningRef.current = true
+          hoveredNodeRef.current = null
+          setTooltip(null)
+          canvas.style.cursor = "grabbing"
+        }
+      })
+      .on("zoom", (event) => {
+        transformRef.current = event.transform
+        viewStateRef.current = {
+          zoom: Number(event.transform.k.toFixed(2)),
+          panX: event.transform.x,
+          panY: event.transform.y,
+        }
+      })
+      .on("end", () => {
+        isPanningRef.current = false
+        if (!dragNodeRef.current) {
+          canvas.style.cursor = "grab"
+        }
+        setViewState({ ...viewStateRef.current })
+      })
+
+    const dragBehavior = d3
+      .drag<HTMLCanvasElement, unknown, SimNode>()
+      .container(canvas)
+      .filter((event) => {
+        if ("button" in event && event.button !== 0) return false
+        const pointer = getPointerPosition(event as MouseEvent | TouchEvent)
+        return !!findNodeAt(pointer.x, pointer.y)
+      })
+      .subject((event) => findNodeAt(event.x, event.y) as SimNode)
+      .clickDistance(4)
+      .on("start", (event) => {
+        const node = event.subject
+        dragNodeRef.current = node
+        hoveredNodeRef.current = node
+        setTooltip(null)
+        canvas.style.cursor = "grabbing"
+        if (!event.active) {
+          simulation.alphaTarget(0.35)
+        }
+        simulation.alpha(0.45).restart()
+        node.fx = node.x
+        node.fy = node.y
+      })
+      .on("drag", (event) => {
+        const node = event.subject
+        const tr = transformRef.current
+        node.fx = (event.x - tr.x) / tr.k
+        node.fy = (event.y - tr.y) / tr.k
+        simulation.alphaTarget(0.35).restart()
+      })
+      .on("end", (event) => {
+        const node = event.subject
+        dragNodeRef.current = null
+        hoveredNodeRef.current = null
+        node.fx = null
+        node.fy = null
+        if (!event.active) {
+          simulation.alphaTarget(0)
+        }
+        canvas.style.cursor = "grab"
+      })
+
+    zoomBehaviorRef.current = zoomBehavior
+    const sel = d3.select(canvas)
+    sel.call(zoomBehavior)
+    sel.call(dragBehavior)
+    sel.on("dblclick.zoom", null)
+    canvas.style.cursor = "grab"
+
+    const initScale = 0.7
+    sel.call(
+      zoomBehavior.transform,
+      d3.zoomIdentity
+        .translate(
+          width * (1 - initScale) * 0.5,
+          height * (1 - initScale) * 0.5
+        )
+        .scale(initScale)
+    )
+
     function onMouseMove(e: MouseEvent) {
+      if (dragNodeRef.current || isPanningRef.current) {
+        canvas.style.cursor = "grabbing"
+        setTooltip(null)
+        return
+      }
+
       const rect = canvas.getBoundingClientRect()
       const mx = e.clientX - rect.left
       const my = e.clientY - rect.top
@@ -546,52 +649,20 @@ export function ForceGraph({
     }
 
     /* ── drag ── */
-    let dragNode: SimNode | null = null
-    function onMouseDown(e: MouseEvent) {
-      const rect = canvas.getBoundingClientRect()
-      const node = findNodeAt(e.clientX - rect.left, e.clientY - rect.top)
-      if (node) {
-        dragNode = node
-        simulation.alphaTarget(0.3).restart()
-        node.fx = node.x
-        node.fy = node.y
-        sel.on(".zoom", null)
-      }
-    }
-    function onMouseMoveDrag(e: MouseEvent) {
-      if (!dragNode) return
-      const rect = canvas.getBoundingClientRect()
-      const tr = transformRef.current
-      dragNode.fx = (e.clientX - rect.left - tr.x) / tr.k
-      dragNode.fy = (e.clientY - rect.top - tr.y) / tr.k
-    }
-    function onMouseUp() {
-      if (dragNode) {
-        simulation.alphaTarget(0)
-        dragNode.fx = null
-        dragNode.fy = null
-        dragNode = null
-        sel.call(zoomBehavior)
-        sel.on("dblclick.zoom", null)
-      }
-    }
-
     canvas.addEventListener("mousemove", onMouseMove)
     canvas.addEventListener("click", onClick)
     canvas.addEventListener("dblclick", onDblClick)
-    canvas.addEventListener("mousedown", onMouseDown)
-    window.addEventListener("mousemove", onMouseMoveDrag)
-    window.addEventListener("mouseup", onMouseUp)
 
     return () => {
+      dragNodeRef.current = null
+      isPanningRef.current = false
       simulation.stop()
       cancelAnimationFrame(rafRef.current)
+      sel.on(".drag", null)
+      sel.on(".zoom", null)
       canvas.removeEventListener("mousemove", onMouseMove)
       canvas.removeEventListener("click", onClick)
       canvas.removeEventListener("dblclick", onDblClick)
-      canvas.removeEventListener("mousedown", onMouseDown)
-      window.removeEventListener("mousemove", onMouseMoveDrag)
-      window.removeEventListener("mouseup", onMouseUp)
     }
   }, [
     dimensions.width,
