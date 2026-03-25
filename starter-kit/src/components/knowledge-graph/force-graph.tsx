@@ -102,6 +102,8 @@ export function ForceGraph({
   const viewStateRef = useRef<ViewState>({ zoom: 1, panX: 0, panY: 0 })
   const hoveredNodeRef = useRef<SimNode | null>(null)
   const dragNodeRef = useRef<SimNode | null>(null)
+  const dragOffsetRef = useRef({ x: 0, y: 0 })
+  const dragMovedRef = useRef(false)
   const isPanningRef = useRef(false)
   const highlightSetRef = useRef<Set<string>>(new Set())
   const selectedNodeRef = useRef(selectedNodeId)
@@ -518,23 +520,44 @@ export function ForceGraph({
       .clickDistance(4)
       .on("start", (event) => {
         const node = event.subject
+        const tr = transformRef.current
+        const pointer = getPointerPosition(
+          event.sourceEvent as MouseEvent | TouchEvent
+        )
+        const pointerX = (pointer.x - tr.x) / tr.k
+        const pointerY = (pointer.y - tr.y) / tr.k
+
         dragNodeRef.current = node
+        dragMovedRef.current = false
+        dragOffsetRef.current = {
+          x: pointerX - (node.x ?? 0),
+          y: pointerY - (node.y ?? 0),
+        }
         hoveredNodeRef.current = node
         setTooltip(null)
         canvas.style.cursor = "grabbing"
-        if (!event.active) {
-          simulation.alphaTarget(0.35)
-        }
-        simulation.alpha(0.45).restart()
         node.fx = node.x
         node.fy = node.y
       })
       .on("drag", (event) => {
         const node = event.subject
+        const pointer = getPointerPosition(
+          event.sourceEvent as MouseEvent | TouchEvent
+        )
         const tr = transformRef.current
-        node.fx = (event.x - tr.x) / tr.k
-        node.fy = (event.y - tr.y) / tr.k
-        simulation.alphaTarget(0.35).restart()
+        const pointerX = (pointer.x - tr.x) / tr.k
+        const pointerY = (pointer.y - tr.y) / tr.k
+
+        if (!dragMovedRef.current) {
+          dragMovedRef.current = true
+          if (!event.active) {
+            simulation.alphaTarget(0.3)
+          }
+          simulation.alpha(0.18).restart()
+        }
+
+        node.fx = pointerX - dragOffsetRef.current.x
+        node.fy = pointerY - dragOffsetRef.current.y
       })
       .on("end", (event) => {
         const node = event.subject
@@ -542,9 +565,12 @@ export function ForceGraph({
         hoveredNodeRef.current = null
         node.fx = null
         node.fy = null
-        if (!event.active) {
+
+        if (dragMovedRef.current && !event.active) {
           simulation.alphaTarget(0)
         }
+
+        dragMovedRef.current = false
         canvas.style.cursor = "grab"
       })
 
