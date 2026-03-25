@@ -104,7 +104,7 @@ function normalizeGraphSeedConfig(config: GraphSeedConfig): GraphSeedConfig {
   }
   const coreDefectCount = clampInt(
     config.coreDefectCount,
-    1,
+    0,
     Math.min(defectNodesSortedByDegree.length, totalNodeLimit)
   )
   const hopCount = Math.max(0, Math.floor(config.hopCount))
@@ -1061,7 +1061,7 @@ function GraphSeedControls({
       <GraphSeedInput
         label="病害"
         max={defectNodesSortedByDegree.length}
-        min={1}
+        min={0}
         onChange={(value) => onChange("coreDefectCount", value)}
         value={config.coreDefectCount}
       />
@@ -1096,6 +1096,13 @@ function GraphSeedInput({
   onChange: (value: string) => void
   value: number
 }) {
+  const [localText, setLocalText] = useState(String(value))
+
+  useEffect(() => {
+    if (localText.trim() === "" && value === 0) return
+    setLocalText(String(value))
+  }, [localText, value])
+
   return (
     <label className="flex items-center gap-1.5">
       <span className="text-[11px] text-muted-foreground">{label}</span>
@@ -1103,10 +1110,18 @@ function GraphSeedInput({
         className="h-8 w-16 rounded-full border border-border/40 bg-background/90 px-3 text-center text-xs font-medium text-foreground outline-none transition focus:border-cyan-500/40 dark:border-white/10 dark:bg-[#020817]/80"
         max={max}
         min={min}
-        onChange={(event) => onChange(event.target.value)}
+        onBlur={() => {
+          if (localText.trim() === "") {
+            onChange("0")
+          }
+        }}
+        onChange={(event) => {
+          setLocalText(event.target.value)
+          onChange(event.target.value)
+        }}
         step={1}
         type="number"
-        value={value}
+        value={localText}
       />
     </label>
   )
