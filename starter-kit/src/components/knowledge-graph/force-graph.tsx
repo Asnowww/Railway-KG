@@ -25,11 +25,14 @@ interface ViewState {
 interface ForceGraphProps {
   nodes?: KnowledgeNode[]
   links?: KnowledgeLink[]
+  coreNodeIds?: Set<string>
   selectedNodeId: string | null
   selectedLinkId: string | null
   focusNodeId?: string | null
   /** External highlight override – when set, these node IDs glow and everything else dims */
   highlightNodes?: Set<string> | null
+  /** Overlay content rendered inside the fullscreen wrapper (visible in fullscreen too) */
+  overlay?: React.ReactNode
   onSelectNode: (nodeId: string) => void
   onSelectLink: (linkId: string) => void
   onExpandNode?: (nodeId: string) => void
@@ -75,14 +78,17 @@ const LINK_COLORS: Record<string, string> = {
 
 const defaultNodes = knowledgeNodes
 const defaultLinks = knowledgeLinks
+const defaultCoreNodeIds = new Set<string>()
 
 export function ForceGraph({
   nodes = defaultNodes,
   links = defaultLinks,
+  coreNodeIds = defaultCoreNodeIds,
   selectedNodeId,
   selectedLinkId,
   focusNodeId,
   highlightNodes,
+  overlay,
   onSelectNode,
   onSelectLink,
   onExpandNode,
@@ -358,10 +364,13 @@ export function ForceGraph({
     const localNodes: SimNode[] = nodes.map((node) => {
       const prev = prevMap.get(node.id)
       const degree = degMap.get(node.id) ?? 0
-      const r = Math.min(
+      const baseRadius = Math.min(
         32,
         (BASE_RADIUS[node.type] ?? 14) + Math.sqrt(degree) * 2
       )
+      const r = coreNodeIds.has(node.id)
+        ? Math.min(44, baseRadius + 12)
+        : baseRadius
       return {
         ...node,
         radius: r,
@@ -695,6 +704,7 @@ export function ForceGraph({
     dimensions.height,
     nodes,
     links,
+    coreNodeIds,
     draw,
     onSelectNode,
     onSelectLink,
@@ -755,6 +765,9 @@ export function ForceGraph({
         className="h-full w-full"
         style={{ display: "block" }}
       />
+
+      {/* overlay (badges, controls) – inside fullscreen wrapper */}
+      {overlay}
 
       {tooltip ? (
         <div
